@@ -148,3 +148,23 @@ input[type=time]{width:auto}
 @keyframes rot{to{transform:rotate(360deg)}}
 .center{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;text-align:center}
 .sr{position:absolute;left:-9999px}
+/* per-crew color: each crew sets --c-hi (bright, for dark surfaces) and --c-lo (deep, for light surfaces) */
+.crewc{--chain:var(--c-lo);--chain-hi:var(--c-hi);--chain-text:var(--c-lo);--chain-tint:color-mix(in srgb,var(--c-hi) 18%,transparent)}
+:root[data-theme="dark"] .crewc{--chain:var(--c-hi);--chain-text:var(--c-hi);--chain-tint:color-mix(in srgb,var(--c-hi) 22%,transparent)}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .crewc{--chain:var(--c-hi);--chain-text:var(--c-hi);--chain-tint:color-mix(in srgb,var(--c-hi) 22%,transparent)}}
+.swatches{display:flex;gap:10px;flex-wrap:wrap}
+.sw-b{width:38px;height:38px;border-radius:50%;border:3px solid transparent;box-shadow:inset 0 0 0 3px var(--card)}
+.sw-b.on{border-color:var(--ink)}
+/* private habits */
+.hb{display:flex;align-items:center;gap:12px;padding:12px 0;border-top:1px solid var(--line);width:100%}
+.hb:first-child{border-top:0;padding-top:0}.hb:last-child{padding-bottom:0}
+.hbox{width:30px;height:30px;border-radius:10px;border:2px solid var(--wait);display:flex;align-items:center;justify-content:center;flex:none;color:var(--btn-fg);transition:transform .12s}
+.hbox.on{background:var(--ink);border-color:var(--ink)}
+.hbox:active{transform:scale(.9)}
+.hbox .ic{width:16px;height:16px;stroke-width:3.5}
+.hkind{font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;border-radius:99px;padding:3px 8px;background:var(--chip);color:var(--muted)}
+/* celebration popup */
+.celebrate{position:absolute;inset:0;z-index:40;background:rgba(10,10,14,.6);display:flex;align-items:center;justify-content:center;padding:24px;animation:fadein .25s ease-out}
+.celebrate .cbox{background:var(--hero);color:var(--hero-fg);border-radius:30px;padding:28px 24px;width:100%;max-width:360px;display:flex;flex-direction:column;align-items:center;gap:14px;text-align:center;animation:pop .4s cubic-bezier(.3,1.5,.5,1)}
+.celebrate .big{font-family:var(--display);font-size:84px;line-height:.9;font-weight:800;letter-spacing:-.05em;color:var(--chain-hi)}
+.custom-len{width:84px!important;text-align:center}

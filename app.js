@@ -33,7 +33,9 @@ const I = {
   flagr:'<path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1zM4 22v-7"/>',
   ban:'<circle cx="12" cy="12" r="9"/><path d="M5.6 5.6l12.8 12.8"/>',
   down:'<path d="M12 3v12M7 10l5 5 5-5M5 21h14"/>',
-  info:'<circle cx="12" cy="12" r="9"/><path d="M12 16v-4M12 8h.01"/>'
+  info:'<circle cx="12" cy="12" r="9"/><path d="M12 16v-4M12 8h.01"/>',
+  lock:'<rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
+  palette:'<circle cx="12" cy="12" r="9"/><circle cx="8" cy="10" r="1.3"/><circle cx="12" cy="7.5" r="1.3"/><circle cx="16" cy="10" r="1.3"/><path d="M12 21a3 3 0 0 1 0-6h2"/>'
 };
 const ic = (n, s) => `<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"${s?` style="${s}"`:''}>${I[n]}</svg>`;
 const esc = s => String(s==null?'':s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -49,6 +51,22 @@ const TEMPLATES = [
   {name:'Gym', rule:'Work out', len:30},
   {name:'', rule:'', len:14, custom:true}
 ];
+/* each crew picks one of these; it colors that crew's chain, buttons and recap. hi = on dark, lo = on light */
+const CREW_COLORS = [
+  {name:'Magenta', hi:'#FF4FA3', lo:'#B0105C'},
+  {name:'Violet', hi:'#9B87FF', lo:'#5B3FD6'},
+  {name:'Teal', hi:'#2CD4D9', lo:'#0B7A80'},
+  {name:'Lime', hi:'#A3E635', lo:'#4D7C0F'},
+  {name:'Blue', hi:'#5AA9FF', lo:'#1D5FBF'},
+  {name:'Amber', hi:'#FFC53D', lo:'#A15C00'}
+];
+const crewColor = c => CREW_COLORS.find(x => x.hi.toLowerCase() === String((c && c.color) || '').toLowerCase()) || CREW_COLORS[0];
+const ccVars = c => { const k = crewColor(c); return `--c-hi:${k.hi};--c-lo:${k.lo};`; };
+const LENGTHS = [7, 14, 21, 30, 60, 90];
+const isMilestone = n => [3, 50, 75, 100, 150, 200, 250, 300, 365].includes(n) || (n >= 7 && n % 7 === 0);
+const milestoneTitle = n => n % 7 === 0 && n >= 7 ? (n === 7 ? 'A full week together' : `${n / 7} full weeks together`) : `${n}-day chain`;
+const NOTIF_KINDS = [['checkins','When someone checks in'], ['full',"When everyone's in"], ['milestones','Milestones, full weeks and streaks'],
+  ['nudges','Nudges and reminders'], ['posts','Posts and cheers'], ['members','Someone joins your crew']];
 const ls = {
   get(k){ try { return localStorage.getItem(k); } catch(e){ return null; } },
   set(k,v){ try { localStorage.setItem(k, v); return true; } catch(e){ return false; } },
@@ -72,11 +90,18 @@ function tzIdx(tz){
 }
 
 /* ---------- state ---------- */
-const S = {me:null, crews:[], blocked:new Set(), names:{}, loaded:false};
+const S = {me:null, crews:[], habits:[], blocked:new Set(), names:{}, loaded:false};
 const U = {screen:'loading', crew:null, sheet:null, draft:null, compose:{photo:null, blob:null, note:''}, toast:null, busy:false,
-  auth:'up', authErr:'', authMsg:'', invite:null, preview:null, confirm:null, recapOnly:null};
+  auth:'up', authErr:'', authMsg:'', invite:null, preview:null, confirm:null, recapOnly:null, hkind:'build', celebrate:null};
 const demo = {offset:0};
 const today = c => tzIdx(c.tz) + (DEMO ? demo.offset : 0);
+const hToday = () => tzIdx(MY_TZ) + (DEMO ? demo.offset : 0);
+
+/* ---------- private habits ----------
+   build: tick it off each day; the streak counts days in a row.
+   break: nothing to tick; it counts days clean since you started or last slipped. */
+function habitStreak(h){ const t = hToday(); let d = h.marks.has(t) ? t : t - 1, n = 0; while (h.marks.has(d)){ n++; d--; } return n; }
+function daysClean(h){ const t = hToday(); if (h.marks.has(t)) return 0; let last = h.startDay - 1; h.marks.forEach(d => { if (d <= t && d > last) last = d; }); return t - last; }
 
 /* ---------- chain logic ---------- */
 const crewById = id => S.crews.find(c => c.id === id);
@@ -200,7 +225,7 @@ function readImage(file){
 function demoBackend(){
   const KEY = 'crews.demo.v1';
   let D = null;
-  const blank = () => ({me:{id:'me', name:''}, crews:[], offset:0, blocked:[]});
+  const blank = () => ({me:{id:'me', name:'', prefs:{}}, crews:[], habits:[], offset:0, blocked:[]});
   function loadD(){ try { D = JSON.parse(ls.get(KEY)) || blank(); } catch(e){ D = blank(); } demo.offset = D.offset || 0; }
   function saveD(){ D.offset = demo.offset; if (!ls.set(KEY, JSON.stringify(D))) throw new Error('This device is out of space. Try a smaller photo.'); }
   const find = id => D.crews.find(c => c.id === id);
@@ -211,13 +236,14 @@ function demoBackend(){
     async signOut(){},
     async load(){
       loadD();
-      S.me = {id:'me', name:D.me.name, remind_at:D.me.remind_at || null};
+      S.me = {id:'me', name:D.me.name, remind_at:D.me.remind_at || null, prefs:D.me.prefs || {}};
+      S.habits = (D.habits || []).map(h => ({...h, marks:new Set(h.marks)}));
       S.blocked = new Set(D.blocked);
       S.crews = JSON.parse(JSON.stringify(D.crews)).map(c => { c.members.forEach(m => { m.you = m.id === 'me'; if (m.you) m.name = D.me.name; }); return c; });
     },
     async createCrew(d){
       const t = tzIdx(MY_TZ) + demo.offset, id = uid();
-      D.crews.unshift({id, name:d.name, rule:d.rule, len:d.len, mode:d.mode, proof:d.proof, tz:MY_TZ, code:id.slice(0, 8), owner:'me', startDay:t,
+      D.crews.unshift({id, name:d.name, rule:d.rule, len:d.len, mode:d.mode, proof:d.proof, color:d.color || null, tz:MY_TZ, code:id.slice(0, 8), owner:'me', startDay:t,
         members:[{id:'me', name:D.me.name, color:COLORS[0], joinDay:t}], log:{}, feed:[], nudges:{}});
       saveD(); return id;
     },
@@ -238,6 +264,11 @@ function demoBackend(){
       saveD(); return id;
     },
     async setName(n){ D.me.name = n; saveD(); },
+    async setPrefs(p){ D.me.prefs = p; saveD(); },
+    async setColor(c, color){ find(c.id).color = color; saveD(); },
+    async addHabit(name, kind){ D.habits = D.habits || []; D.habits.push({id:uid(), name, kind, startDay:hToday(), marks:[]}); saveD(); },
+    async markHabit(h, on){ const x = D.habits.find(y => y.id === h.id), t = hToday(); x.marks = x.marks.filter(d => d !== t); if (on) x.marks.push(t); saveD(); },
+    async deleteHabit(h){ D.habits = D.habits.filter(y => y.id !== h.id); saveD(); },
     async setReminder(hm){ D.me.remind_at = hm; saveD(); },
     async report(){}, async block(id){ D.blocked.push(id); saveD(); }, async unblock(id){ D.blocked = D.blocked.filter(x => x !== id); saveD(); },
     async deleteAccount(){ ls.del(KEY); loadD(); },
@@ -287,10 +318,11 @@ function supabaseBackend(){
         fail(await sb.from('crew_profiles').insert({id, name, tz:MY_TZ}));
         prof = {id, name, tz:MY_TZ, remind_at:null};
       } else if (prof.tz !== MY_TZ){ sb.from('crew_profiles').update({tz:MY_TZ}).eq('id', id).then(()=>{}); }
-      const [crews, mem, blk] = await Promise.all([
+      const [crews, mem, blk, habits] = await Promise.all([
         all(() => sb.from('crews').select('*').order('created_at', {ascending:false})),
         all(() => sb.from('crew_members').select('crew_id,user_id,color,joined_day,joined_at,crew_profiles(name)').order('joined_at')),
-        all(() => sb.from('crew_blocks').select('blocked'))
+        all(() => sb.from('crew_blocks').select('blocked')),
+        all(() => sb.from('crew_habits').select('*').eq('user_id', id).order('created_at'))
       ]);
       const ids = crews.map(c => c.id);
       let ins = [], posts = [], nudges = [], cheers = [];
@@ -309,9 +341,10 @@ function supabaseBackend(){
         }
       }
       const byId = {};
-      S.me = {id, name:prof.name, remind_at:prof.remind_at};
+      S.me = {id, name:prof.name, remind_at:prof.remind_at, prefs:prof.notif_prefs || {}};
+      S.habits = habits.map(h => ({id:h.id, name:h.name, kind:h.kind, startDay:idxOf(h.start_day), marks:new Set((h.marks || []).map(idxOf))}));
       S.blocked = new Set(blk.map(b => b.blocked));
-      S.crews = crews.map(c => (byId[c.id] = {id:c.id, name:c.name, rule:c.rule, len:c.len, mode:c.mode, proof:c.proof, tz:c.tz, code:c.code, owner:c.owner,
+      S.crews = crews.map(c => (byId[c.id] = {id:c.id, name:c.name, rule:c.rule, len:c.len, mode:c.mode, proof:c.proof, color:c.color, tz:c.tz, code:c.code, owner:c.owner,
         startDay:idxOf(c.start_date), members:[], log:{}, feed:[], nudges:{}}));
       mem.forEach(m => { const c = byId[m.crew_id]; if (!c) return;
         const name = m.user_id === id ? prof.name : ((m.crew_profiles && m.crew_profiles.name) || 'Someone');
@@ -326,7 +359,7 @@ function supabaseBackend(){
       nudges.forEach(n => { const c = byId[n.crew_id]; if (!c) return; const d = idxOf(n.day); (c.nudges[d] = c.nudges[d] || []).push(n.sender); });
     },
     async createCrew(d){
-      return fail(await sb.rpc('create_crew', {p_name:d.name, p_rule:d.rule, p_len:d.len, p_mode:d.mode, p_proof:d.proof, p_tz:MY_TZ, p_color:COLORS[Math.floor(Math.random() * COLORS.length)]}));
+      return fail(await sb.rpc('create_crew', {p_name:d.name, p_rule:d.rule, p_len:d.len, p_mode:d.mode, p_proof:d.proof, p_tz:MY_TZ, p_color:COLORS[Math.floor(Math.random() * COLORS.length)], p_cover:d.color || null}));
     },
     async preview(code){ const r = await sb.rpc('crew_preview', {p_code:code}); return r.error ? null : r.data; },
     async join(code, taken){
@@ -361,6 +394,12 @@ function supabaseBackend(){
     },
     async rerun(c){ return fail(await sb.rpc('rerun_crew', {p_old:c.id})); },
     async setName(n){ fail(await sb.from('crew_profiles').update({name:n}).eq('id', myId())); },
+    async setPrefs(p){ fail(await sb.from('crew_profiles').update({notif_prefs:p}).eq('id', myId())); },
+    async setColor(c, color){ fail(await sb.rpc('set_crew_color', {p_crew:c.id, p_color:color})); },
+    async addHabit(name, kind){ fail(await sb.from('crew_habits').insert({user_id:myId(), name, kind, start_day:dateOf(tzIdx(MY_TZ))})); },
+    async markHabit(h, on){ const t = tzIdx(MY_TZ), m = [...h.marks].filter(d => d !== t); if (on) m.push(t);
+      fail(await sb.from('crew_habits').update({marks:m.map(dateOf)}).eq('id', h.id)); },
+    async deleteHabit(h){ fail(await sb.from('crew_habits').delete().eq('id', h.id)); },
     async setReminder(hm){ fail(await sb.from('crew_profiles').update({remind_at:hm, tz:MY_TZ}).eq('id', myId())); },
     async report(c, p, reason){
       fail(await sb.from('crew_reports').insert({reporter:myId(), reported_user:p.who, post_id:p.id, reason, post_body:p.text || null, post_photo:p.path || null}));
@@ -418,7 +457,30 @@ async function refresh(){
   loading = (async () => { await api.load(); S.loaded = true; })().finally(() => { loading = null; });
   return loading;
 }
-function softRefresh(){ clearTimeout(reloadTimer); reloadTimer = setTimeout(() => refresh().then(safeRender, () => {}), 350); }
+function softRefresh(){ clearTimeout(reloadTimer); reloadTimer = setTimeout(() => { const before = snapshot(); refresh().then(() => { announce(before); safeRender(); }, () => {}); }, 350); }
+// pop-ups when crewmates check in on their phones
+function snapshot(){ const m = {}; S.crews.forEach(c => { const t = today(c); m[c.id] = {ins:new Set(Object.keys(c.log[t] || {})), full:fullDay(c, t)}; }); return m; }
+function announce(before){
+  const msgs = [];
+  S.crews.forEach(c => {
+    const b = before[c.id], m0 = me(c); if (!b || !m0 || finished(c)) return;
+    const t = today(c), fresh = Object.keys(c.log[t] || {}).filter(id => !b.ins.has(id) && id !== m0.id);
+    if (!fresh.length) return;
+    if (!b.full && fullDay(c, t)){ U.burst = c.id; if (!celebrateFor(c)) msgs.push(`${c.name}: everyone's in. Chain ${chainInfo(c).chain}!`); }
+    else fresh.forEach(id => { const m = c.members.find(x => x.id === id); msgs.push(`${first(m && m.name)} checked in · ${c.name} ${doneToday(c)}/${c.members.length}`); });
+  });
+  if (msgs.length) toast(msgs.slice(0, 2).join('  ·  '));
+}
+// a big pop-up for chain milestones, full weeks, finishing, and your own streaks. Returns true if it showed one.
+function celebrateFor(c, mine){
+  const t = today(c), info = chainInfo(c);
+  if (fullDay(c, t)){
+    if (t === lastDay(c)){ U.celebrate = {crew:c.id, big:String(c.len), title:'Challenge complete', sub:`${c.name}: ${c.len} days together. Run it back?`, links:9}; return true; }
+    if (isMilestone(info.chain)){ U.celebrate = {crew:c.id, big:String(info.chain), title:milestoneTitle(info.chain), sub:`${c.name}: everyone showed up ${info.chain} days straight.`, links:info.chain}; return true; }
+  }
+  if (mine){ const k = pstreak(c, me(c).id); if ([3, 7, 14, 21, 30, 50, 100, 200, 365].includes(k)){ U.celebrate = {crew:c.id, big:String(k), title:`${k}-day streak`, sub:`${c.name}: ${k} days in a row.`, links:k}; return true; } }
+  return false;
+}
 // background updates wait while someone is typing, so their text isn't wiped
 let renderLater = false;
 function safeRender(){ const el = document.activeElement; if (el && app.contains(el) && /INPUT|TEXTAREA/.test(el.tagName)){ renderLater = true; return; } render(); }
@@ -438,7 +500,7 @@ function errText(e){
 }
 async function act(fn, ok){
   if (U.busy) return; U.busy = true; render();
-  try { const r = await fn(); await refresh(); if (ok) toast(typeof ok === 'function' ? ok(r) : ok); return r; }
+  try { const r = await fn(); await refresh(); const m = ok && (typeof ok === 'function' ? ok(r) : ok); if (m) toast(m); return r; }
   catch(e){ toast(errText(e)); try { await refresh(); } catch(_){} }
   finally { U.busy = false; render(); }
 }
@@ -522,9 +584,9 @@ function crewCard(c){
   const info = chainInfo(c), fin = finished(c), m0 = me(c), done = isDone(c, today(c), m0.id);
   let foot;
   if (fin) foot = `<div class="row" style="gap:8px"><button class="btn sm ghost" data-a="recap" data-v="${c.id}">${ic('bars','width:16px;height:16px')}Recap</button><button class="btn sm" data-a="again" data-v="${c.id}">${ic('redo','width:16px;height:16px')}Run it back</button></div>`;
-  else if (!done) foot = `<button class="btn" data-a="checkin" data-v="${c.id}">${c.proof?ic('cam','width:18px;height:18px'):''}Check in</button>`;
+  else if (!done) foot = `<button class="btn chainbtn" data-a="checkin" data-v="${c.id}">${c.proof?ic('cam','width:18px;height:18px'):''}Check in</button>`;
   else foot = `<div class="row" style="font-weight:700;font-size:15px">${ic('check','width:18px;height:18px;color:var(--chain-text)')}${doneToday(c)}/${c.members.length} in</div>`;
-  return `<div class="card">
+  return `<div class="card crewc" style="${ccVars(c)}border-top:5px solid var(--chain)">
     <button data-a="crew" data-v="${c.id}" style="display:flex;flex-direction:column;gap:12px;text-align:left;width:100%">
       <span class="row" style="justify-content:space-between;align-items:flex-start;width:100%">
         <span class="grow"><span class="h" style="display:block;font-size:21px;font-weight:700;letter-spacing:-.01em">${esc(c.name)}</span><span class="sub">${fin?'Finished':`Day ${dayNum(c)} of ${c.len}`}</span></span>
@@ -548,7 +610,31 @@ function vHome(){
     ${demoBar()}
     ${active.map(crewCard).join('')}
     ${!S.crews.length ? `<div class="empty"><span style="color:var(--chain)">${ic('rings','width:84px;height:84px;stroke-width:2.2')}</span><div class="h" style="font-size:24px;font-weight:800">No crews yet</div><div class="sub">Start a challenge, then send the link to 2 to 4 friends.</div><button class="btn" data-a="tab" data-v="new" style="max-width:240px">Start a challenge</button></div>` : ''}
+    ${habitsCard()}
     ${done.length ? `<div class="lab" style="margin-top:6px">Finished</div>${done.map(crewCard).join('')}` : ''}
+  </div>`;
+}
+
+function habitsCard(){
+  const t = hToday();
+  const rows = S.habits.map(h => h.kind === 'build'
+    ? `<div class="hb"><button class="hbox ${h.marks.has(t)?'on':''}" data-a="habit" data-v="${h.id}" aria-pressed="${h.marks.has(t)}" aria-label="Done today: ${esc(h.name)}">${h.marks.has(t)?ic('check'):''}</button>
+        <div class="grow"><div style="font-weight:600;font-size:15px">${esc(h.name)}</div><div class="sub">${habitStreak(h)} day streak</div></div><span class="hkind">Build</span></div>`
+    : `<div class="hb"><div class="hbox" style="border-style:solid;border-color:transparent;background:var(--chip);color:var(--ink);font-weight:800;font-size:13px">${daysClean(h)}</div>
+        <div class="grow"><div style="font-weight:600;font-size:15px">${esc(h.name)}</div><div class="sub">${daysClean(h)} day${daysClean(h)===1?'':'s'} clean</div></div>
+        <button class="chip" data-a="slip" data-v="${h.id}">${h.marks.has(t)?'Undo':'Slipped'}</button></div>`).join('');
+  return `<div style="display:flex;flex-direction:column;gap:8px">
+    <div class="row" style="gap:6px;color:var(--muted)">${ic('lock','width:14px;height:14px')}<div class="lab">Just for you</div></div>
+    <div class="card" style="gap:0;padding:14px 16px">
+      ${rows}
+      <form data-f="habit" class="hb" style="flex-wrap:wrap;gap:8px">
+        <label for="hn" class="sr">New private habit</label>
+        <input id="hn" type="text" maxlength="40" placeholder="New habit" autocomplete="off" style="flex:1;min-width:140px;padding:10px 12px">
+        <div class="seg2" role="group" aria-label="Habit type" style="flex:none"><button type="button" data-a="hkind" data-v="build" class="${U.hkind==='build'?'on':''}" style="padding:7px 10px">Build</button><button type="button" data-a="hkind" data-v="break" class="${U.hkind==='break'?'on':''}" style="padding:7px 10px">Break</button></div>
+        <button type="submit" class="back" aria-label="Add habit" style="width:38px;height:38px;background:var(--chip)">${ic('plus')}</button>
+      </form>
+    </div>
+    <div class="sub">Only you see these. Build a habit by ticking it off daily, or break one by counting days clean.</div>
   </div>`;
 }
 
@@ -563,12 +649,15 @@ function vNew(){
       <label for="cn" class="lab">Name</label><input id="cn" type="text" maxlength="32" value="${esc(d.name)}" placeholder="Crew challenge" autocomplete="off">
       <label for="cr" class="lab">Rule</label><input id="cr" type="text" maxlength="40" value="${esc(d.rule)}" placeholder="2 to 4 words" autocomplete="off">
       <div class="lab">Days</div>
-      <div class="row" style="gap:8px">${[7,14,21,30].map(n=>`<button class="len ${d.len===n?'on':''}" data-a="len" data-v="${n}">${n}</button>`).join('')}</div>
+      <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px">${LENGTHS.map(n=>`<button class="len ${!d.customLen&&d.len===n?'on':''}" data-a="len" data-v="${n}">${n}</button>`).join('')}<button class="len ${d.customLen?'on':''}" data-a="len" data-v="custom" style="grid-column:span 2">Custom</button></div>
+      ${d.customLen ? `<div class="row"><label for="cl" class="sub" style="font-weight:600">Number of days</label><input id="cl" type="number" inputmode="numeric" min="3" max="365" value="${d.len}" class="custom-len" style="font:inherit;font-size:15px;color:var(--ink);background:var(--card);border:1px solid var(--line);border-radius:14px;padding:10px"><span class="sub">3 to 365</span></div>` : ''}
+      <div class="lab">Crew color</div>
+      <div class="swatches">${CREW_COLORS.map(k=>`<button class="sw-b ${(d.color||CREW_COLORS[0].hi)===k.hi?'on':''}" data-a="dcolor" data-v="${k.hi}" style="background:${k.hi}" aria-label="${k.name}" aria-pressed="${(d.color||CREW_COLORS[0].hi)===k.hi}"></button>`).join('')}</div>
       <div class="lab">Chain rule</div>
       <div class="row" style="gap:8px"><button class="sel ${d.mode==='daily'?'on':''}" data-a="mode" data-v="daily">Daily + saves</button><button class="sel ${d.mode==='weekly'?'on':''}" data-a="mode" data-v="weekly">5 of 7 days</button></div>
       <div class="sub">${d.mode==='daily'?'Everyone checks in daily. The crew shares one save per person for missed days.':'Each person needs 5 of 7 days a week.'}</div>
       <div class="row" style="justify-content:space-between;font-size:15px;font-weight:600"><span>Photo required</span><button class="toggle" role="switch" aria-checked="${d.proof}" aria-label="Photo required" data-a="proof"></button></div>
-      <button class="btn chainbtn" data-a="create" ${d.name.trim()&&!U.busy?'':'disabled'}>Create crew</button>
+      <button class="btn chainbtn crewc" style="${ccVars(d)}" data-a="create" ${d.name.trim()&&!U.busy?'':'disabled'}>Create crew</button>
     </div>` : ''}
   </div>`;
 }
@@ -589,7 +678,7 @@ function vCrew(){
   const weekly = c.mode === 'weekly' && !fin ? (w => ` · you ${w.done}/${w.need} this week`)(weekNeed(c, m0.id)) : '';
   const canInvite = !fin && c.members.length < MAX;
   const owner = c.owner === m0.id;
-  return `<div class="screen">
+  return `<div class="screen crewc" style="${ccVars(c)}">
     <div class="row" style="gap:12px">
       <button class="back" data-a="tab" data-v="home" aria-label="Back">${ic('back')}</button>
       <div class="grow"><div class="h" style="font-size:22px;font-weight:800;letter-spacing:-.02em">${esc(c.name)}</div><div class="sub">${esc(c.rule)}${c.proof?' · photo required':''}</div></div>
@@ -629,6 +718,7 @@ function vCrew(){
     ${c.feed.map(f=>post(c,f)).join('')}
     <div class="row" style="justify-content:center;gap:10px;flex-wrap:wrap">
       <button class="chip" data-a="leave" ${U.confirm==='leave'?'style="background:#FDE2D6;color:#B42318"':''}>${ic('out')}${U.confirm==='leave'?'Tap again to leave':'Leave crew'}</button>
+      ${owner?`<button class="chip" data-a="colorsheet" data-v="${c.id}"><span style="width:14px;height:14px;border-radius:50%;background:var(--chain-hi)"></span>Color</button>`:''}
       ${owner?`<button class="chip" data-a="delcrew" ${U.confirm==='del'?'style="background:#FDE2D6;color:#B42318"':''}>${ic('trash')}${U.confirm==='del'?'Delete for everyone?':'Delete crew'}</button>`:''}
     </div>
   </div>`;
@@ -665,7 +755,7 @@ function post(c, f){
 
 function vCompose(){
   const c = crewById(U.crew); if (!c){ U.screen = 'home'; return vHome(); }
-  return `<div class="screen nonav">
+  return `<div class="screen nonav crewc" style="${ccVars(c)}">
     <div class="row" style="justify-content:space-between"><h2 class="title" style="font-size:26px">${esc(c.name)}</h2><button class="back" data-a="crew" data-v="${c.id}" aria-label="Close">${ic('x')}</button></div>
     ${composer(c, true)}
   </div>`;
@@ -684,7 +774,7 @@ function weekStats(c){
 
 function recapCard(c){
   const fin = finished(c), w = weekStats(c), info = w.info, em = w.early;
-  return `<div style="flex:none;background:var(--hero);color:var(--hero-fg);border-radius:28px;padding:22px;display:flex;flex-direction:column;gap:16px;position:relative;overflow:hidden">
+  return `<div class="crewc" style="${ccVars(c)}flex:none;background:var(--hero);color:var(--hero-fg);border-radius:28px;padding:22px;display:flex;flex-direction:column;gap:16px;position:relative;overflow:hidden">
     <div style="position:absolute;right:-70px;top:-6px;width:250px;transform:rotate(-32deg);opacity:.95">${chainSVG(['full','full','full','full'],{w:400, W:84, H:48, step:62, sw:12, on:'var(--chain-hi)', label:'Chain', key:'deco'+c.id, sway:false})}</div>
     <div class="lab" style="color:var(--hero-muted);position:relative;padding-right:120px">${fin?'Final recap':'This week'} · ${esc(c.name)}</div>
     <div style="position:relative;margin-top:56px"><div class="h" style="font-size:72px;line-height:.85;font-weight:800;letter-spacing:-.05em">${w.hit}<span style="color:var(--hero-muted)">/${w.slots}</span></div><div style="font-size:15px;font-weight:600;margin-top:6px">check-ins</div></div>
@@ -718,7 +808,9 @@ function vYou(){
   else if (!pushCapable()) notif = `<div class="sub">${CFG.vapidPublicKey ? "This browser doesn't support notifications." : 'Notifications are not set up yet.'}</div>`;
   else notif = `<div class="row" style="justify-content:space-between;font-size:15px;font-weight:600"><span>Crew notifications</span><button class="toggle" role="switch" aria-checked="${on}" aria-label="Crew notifications" data-a="pushtoggle"></button></div>
     ${on ? `<div class="row" style="justify-content:space-between;font-size:15px;font-weight:600"><label for="rt">Daily reminder</label><span class="row" style="gap:8px"><input id="rt" type="time" value="${esc(S.me.remind_at || '')}">${S.me.remind_at?`<button class="linkbtn" data-a="noremind">Off</button>`:''}</span></div>
-      <div class="sub">Only sent if you haven't checked in yet.</div>` : ''}`;
+      <div class="sub">Only sent if you haven't checked in yet.</div>
+      <div class="lab" style="margin-top:4px">Send me a notification</div>
+      ${NOTIF_KINDS.map(([k,label])=>`<div class="row" style="justify-content:space-between;font-size:15px;font-weight:500"><span>${label}</span><button class="toggle" role="switch" aria-checked="${S.me.prefs[k]!==false}" aria-label="${label}" data-a="pref" data-v="${k}"></button></div>`).join('')}` : ''}`;
   return `<div class="screen">
     <div class="row" style="gap:14px">
       <span class="av" style="width:60px;height:60px;font-size:22px;background:var(--chain);color:var(--chain-fg)">${esc(initials(S.me.name))}</span>
@@ -727,6 +819,7 @@ function vYou(){
     ${demoBar()}
     <div class="lab">Notifications</div>
     <div class="card">${notif}</div>
+    ${S.habits.length ? `<div class="lab">Private habits</div><div class="card" style="gap:0;padding:6px 16px">${S.habits.map(h=>`<div class="li"><span class="grow">${esc(h.name)} <span class="hkind">${h.kind==='build'?'Build':'Break'}</span></span><button class="linkbtn" data-a="delhabit" data-v="${h.id}" ${U.confirm==='h'+h.id?'style="color:#B42318"':''}>${U.confirm==='h'+h.id?'Tap to delete':'Delete'}</button></div>`).join('')}</div>` : ''}
     <div class="lab">Appearance</div>
     <div class="seg2" role="group" aria-label="Theme">${['system','light','dark'].map(t=>`<button data-a="theme" data-v="${t}" class="${theme===t?'on':''}">${t[0].toUpperCase()+t.slice(1)}</button>`).join('')}</div>
     ${!standalone() && (installEvt || isIOS) ? `<button class="opt" data-a="install">${ic('down')}Install the app</button>` : ''}
@@ -762,6 +855,10 @@ function sheet(){
   } else if (s.type === 'report'){
     body = `<div class="h" style="font-size:20px;font-weight:800">Why are you reporting this?</div>
       ${['Spam','Nudity or sexual content','Harassment or bullying','Violence or self-harm','Something else'].map(r=>`<button class="opt" data-a="report" data-v="${esc(r)}">${esc(r)}</button>`).join('')}`;
+  } else if (s.type === 'color'){
+    const c = crewById(s.crew); if (!c){ U.sheet = null; return ''; }
+    body = `<div class="h" style="font-size:20px;font-weight:800">Crew color</div><div class="sub">Changes the chain and buttons for everyone in ${esc(c.name)}.</div>
+      <div class="swatches" style="justify-content:center;padding:8px 0">${CREW_COLORS.map(k=>`<button class="sw-b ${crewColor(c).hi===k.hi?'on':''}" data-a="setcolor" data-v="${k.hi}" style="background:${k.hi};width:46px;height:46px" aria-label="${k.name}"></button>`).join('')}</div>`;
   } else if (s.type === 'install'){
     body = `<div class="h" style="font-size:20px;font-weight:800">Install on iPhone</div>
       <div style="font-size:15px;line-height:1.5">In Safari, tap the Share button, then <b>Add to Home Screen</b>. Open the app from your Home Screen to get notifications.</div>`;
@@ -770,6 +867,22 @@ function sheet(){
     <div style="width:40px;height:5px;border-radius:9px;background:var(--line);align-self:center"></div>
     ${body}
     <button class="btn ghost sm" data-a="closesheet">Cancel</button>
+  </div></div>`;
+}
+
+function celebrateView(){
+  const k = U.celebrate; if (!k) return '';
+  const c = crewById(k.crew) || {};
+  const n = Math.min(Math.max(k.links || 7, 1), 9);
+  return `<div class="celebrate crewc" style="${ccVars(c)}" data-a="closecele"><div class="cbox" data-stop role="dialog" aria-modal="true" aria-label="${esc(k.title)}">
+    <div class="big">${esc(k.big)}</div>
+    <div class="h" style="font-size:24px;font-weight:800;letter-spacing:-.02em">${esc(k.title)}</div>
+    <div style="font-size:14px;color:var(--hero-muted)">${esc(k.sub)}</div>
+    <div style="width:100%">${chainSVG(Array(n).fill('full'), {w:300, W:30, H:18, step:22, sw:4.5, on:'var(--chain-hi)', label:k.title, key:'cele'+(k.id || (k.id = Date.now()))})}</div>
+    <div class="row" style="gap:8px;width:100%">
+      ${k.crew ? `<button class="btn sm" style="background:var(--hero-chip);color:var(--hero-fg)" data-a="share" data-v="${k.crew}">${ic('share','width:16px;height:16px')}Share</button>` : ''}
+      <button class="btn chainbtn sm" data-a="closecele">Keep going</button>
+    </div>
   </div></div>`;
 }
 
@@ -782,7 +895,7 @@ function render(){
   const keep = sc0 && lastKey === key ? sc0.scrollTop : 0;
   const hasNav = NAV_SCREENS.includes(U.screen);
   const focusId = document.activeElement && app.contains(document.activeElement) ? document.activeElement.id : null;
-  app.innerHTML = VIEWS[U.screen]() + (hasNav ? nav() : '') + (U.sheet ? sheet() : '') + (U.toast ? `<div class="toast ${hasNav?'':'nonav'}" role="status">${ic('rings')}<span>${esc(U.toast)}</span></div>` : '');
+  app.innerHTML = VIEWS[U.screen]() + (hasNav ? nav() : '') + (U.sheet ? sheet() : '') + celebrateView() + (U.toast ? `<div class="toast ${hasNav?'':'nonav'}" role="status">${ic('rings')}<span>${esc(U.toast)}</span></div>` : '');
   const sc = app.querySelector('.screen'); if (sc) sc.scrollTop = keep;
   if (focusId){ const el = document.getElementById(focusId); if (el && el.tagName === 'INPUT') el.focus(); }
   lastKey = key;
@@ -803,7 +916,7 @@ async function doCheckIn(c, mid){
   (c.log[t] = c.log[t] || {})[who] = Date.now();
   U.sheet = null;
   const msg = resultMsg(c, wasFull, prevPaused);
-  toast(msg); render();
+  if (!celebrateFor(c, !mid)) toast(msg); render();
   try { await api.checkIn(c, who); await refresh(); }
   catch(e){ delete c.log[t][who]; toast(errText(e)); }
   render();
@@ -894,7 +1007,7 @@ app.addEventListener('click', async e => {
   if (e.target.closest('[data-stop]') && !e.target.closest('[data-a]')) return;
   const b = e.target.closest('[data-a]'); if (!b || b.disabled) return;
   const a = b.dataset.a, v = b.dataset.v;
-  if (!['leave','delcrew','erase','delacct'].includes(a)) U.confirm = null;
+  if (!['leave','delcrew','erase','delacct','delhabit'].includes(a)) U.confirm = null;
   const c = v ? crewById(v) : null;
 
   if (a === 'tab') go(v);
@@ -926,7 +1039,7 @@ app.addEventListener('click', async e => {
     if ((req && !k.photo) || (!k.photo && !k.note.trim())) return;
     const r = await act(async () => {
       await api.post(c, {note:k.note.trim(), photo:k.photo, blob:k.blob});
-      if (req){ const wasFull = fullDay(c, today(c)), pp = chainInfo(c).st[today(c) - 1] === 'paused'; await api.checkIn(c); await refresh(); return resultMsg(c, wasFull, pp); }
+      if (req){ const wasFull = fullDay(c, today(c)), pp = chainInfo(c).st[today(c) - 1] === 'paused'; await api.checkIn(c); await refresh(); const m = resultMsg(c, wasFull, pp); return celebrateFor(crewById(c.id) || c, true) ? null : m; }
       return 'Posted';
     }, m => m);
     if (r !== undefined){ U.compose = {photo:null, blob:null, note:''}; if (req){ U.crew = c.id; go('crew'); } else render(); }
@@ -942,17 +1055,28 @@ app.addEventListener('click', async e => {
   else if (a === 'unblock') act(() => api.unblock(v), 'Unblocked');
   else if (a === 'tpl'){ const t = TEMPLATES[+v]; U.draft = {tpl:+v, name:t.name, rule:t.rule, len:t.len, mode:'daily', proof:false}; render();
     const s = document.getElementById('setup'); if (s) s.scrollIntoView({behavior:'smooth', block:'start'}); if (t.custom){ const n = document.getElementById('cn'); if (n) n.focus(); } }
-  else if (a === 'len'){ U.draft.len = +v; render(); }
+  else if (a === 'len'){ if (v === 'custom'){ U.draft.customLen = true; render(); const el = document.getElementById('cl'); if (el){ el.focus(); el.select(); } } else { U.draft.customLen = false; U.draft.len = +v; render(); } }
+  else if (a === 'dcolor'){ U.draft.color = v; render(); }
+  else if (a === 'colorsheet'){ U.sheet = {type:'color', crew:v}; render(); }
+  else if (a === 'setcolor'){ const x = crewById(U.sheet.crew); U.sheet = null; x.color = v; render(); act(() => api.setColor(x, v)); }
+  else if (a === 'closecele'){ U.celebrate = null; render(); }
+  else if (a === 'hkind'){ U.hkind = v; render(); const n = document.getElementById('hn'); if (n) n.focus(); }
+  else if (a === 'habit' || a === 'slip'){ const h = S.habits.find(x => x.id === v), t = hToday(), on = !h.marks.has(t);
+    if (on) h.marks.add(t); else h.marks.delete(t); render();
+    try { await api.markHabit(h, on); } catch(err){ toast(errText(err)); await refresh(); render(); } }
+  else if (a === 'delhabit'){ if (U.confirm !== 'h' + v){ U.confirm = 'h' + v; render(); return; } U.confirm = null; act(() => api.deleteHabit(S.habits.find(x => x.id === v)), 'Habit deleted'); }
+  else if (a === 'pref'){ const p = {...S.me.prefs, [v]: S.me.prefs[v] === false}; S.me.prefs = p; render(); act(() => api.setPrefs(p)); }
   else if (a === 'mode'){ U.draft.mode = v; render(); }
   else if (a === 'proof'){ U.draft.proof = !U.draft.proof; render(); }
   else if (a === 'create'){
     const d = U.draft; if (!d.name.trim()) return;
-    const id = await act(() => api.createCrew({name:d.name.trim(), rule:d.rule.trim(), len:d.len, mode:d.mode, proof:d.proof}), 'Crew created. Now invite your crew.');
+    const len = Math.min(365, Math.max(3, Math.round(+d.len || 14)));
+    const id = await act(() => api.createCrew({name:d.name.trim(), rule:d.rule.trim(), len, mode:d.mode, proof:d.proof, color:d.color || CREW_COLORS[0].hi}), 'Crew created. Now invite your crew.');
     if (id){ U.draft = null; U.crew = id; go('crew'); }
   }
   else if (a === 'again'){ const id = await act(() => api.rerun(c), 'New round started'); if (id){ U.crew = id; go('crew'); } }
   else if (a === 'recap'){ U.recapOnly = v; U.screen = 'recap'; render(); }
-  else if (a === 'share') shareRecap(c);
+  else if (a === 'share'){ U.celebrate = null; shareRecap(c); }
   else if (a === 'leave'){
     if (U.confirm !== 'leave'){ U.confirm = 'leave'; render(); return; }
     const x = crewById(U.crew); U.confirm = null; await act(() => api.leave(x), 'You left the crew'); go('home');
@@ -991,6 +1115,7 @@ app.addEventListener('input', e => {
   if (t.id === 'note') U.compose.note = t.value;
   else if (t.id === 'cn'){ U.draft.name = t.value; const btn = app.querySelector('[data-a="create"]'); if (btn) btn.disabled = !t.value.trim(); }
   else if (t.id === 'cr') U.draft.rule = t.value;
+  else if (t.id === 'cl') U.draft.len = t.value;
 });
 app.addEventListener('change', async e => {
   const t = e.target;
@@ -1028,6 +1153,7 @@ app.addEventListener('submit', async e => {
     catch(err){ U.busy = false; U.authErr = errText(err); render(); }
   }
   else if (f === 'name'){ const n = val('nm').slice(0, 24); if (!n) return; await act(() => api.setName(n)); if (S.me.name) enter(); }
+  else if (f === 'habit'){ const n = val('hn').slice(0, 40); if (!n) return; await act(() => api.addHabit(n, U.hkind), U.hkind === 'build' ? 'Habit added' : 'Counting days clean from today'); const el = document.getElementById('hn'); if (el) el.focus(); }
   else if (f === 'friend'){ const n = val('fn'); if (!n) return; U.addFriend = false; act(() => api.addFriend(crewById(U.crew), n)); }
 });
 

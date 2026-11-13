@@ -34,7 +34,7 @@ create table if not exists public.crews (
   id uuid primary key default gen_random_uuid(),
   name text not null check (char_length(name) between 1 and 32),
   rule text not null default '' check (char_length(rule) <= 40),
-  len int not null check (len in (7, 14, 21, 30)),
+  len int not null check (len between 3 and 365),
   mode text not null default 'daily' check (mode in ('daily', 'weekly')),
   proof boolean not null default false,
   tz text not null default 'UTC',                 -- the crew's day starts at midnight here
@@ -43,6 +43,12 @@ create table if not exists public.crews (
   owner uuid references public.crew_profiles(id) on delete set null default auth.uid(),
   created_at timestamptz not null default now()
 );
+
+-- updates for projects set up before these columns existed (safe to run again)
+alter table public.crews drop constraint if exists crews_len_check;
+alter table public.crews add constraint crews_len_check check (len between 3 and 365);
+alter table public.crews add column if not exists color text check (color is null or color ~ '^#[0-9A-Fa-f]{6}$');
+alter table public.crew_profiles add column if not exists notif_prefs jsonb not null default '{}';
 
 create table if not exists public.crew_members (
   crew_id uuid not null references public.crews(id) on delete cascade,
@@ -107,6 +113,18 @@ create table if not exists public.crew_reports (
   created_at timestamptz not null default now()
 );
 
+-- ---------- private habits (only you ever see these) ----------
+create table if not exists public.crew_habits (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references public.crew_profiles(id) on delete cascade default auth.uid(),
+  name text not null check (char_length(name) between 1 and 40),
+  kind text not null default 'build' check (kind in ('build', 'break')),
+  start_day date not null,
+  marks date[] not null default '{}',   -- build: days done. break: days slipped.
+  created_at timestamptz not null default now()
+);
+create index if not exists crew_habits_user on public.crew_habits (user_id);
+
 -- ---------- helpers ----------
 create or replace function public.crew_today(p_crew uuid) returns date
 language sql stable security definer set search_path = public as $$
@@ -156,6 +174,11 @@ alter table public.crew_cheers enable row level security;
 alter table public.crew_nudges enable row level security;
 alter table public.crew_blocks enable row level security;
 alter table public.crew_reports enable row level security;
+alter table public.crew_habits enable row level security;
+
+drop policy if exists "own habits" on public.crew_habits;
+create policy "own habits" on public.crew_habits for all to authenticated
+  using (user_id = auth.uid()) with check (user_id = auth.uid());
 
 drop policy if exists "see crewmates" on public.crew_profiles;
 create policy "see crewmates" on public.crew_profiles for select to authenticated using (public.shares_crew(id));
@@ -220,14 +243,15 @@ create policy "file a report" on public.crew_reports for insert to authenticated
 
 -- ---------- actions ----------
 -- start a crew; you are its first member
-create or replace function public.create_crew(p_name text, p_rule text, p_len int, p_mode text, p_proof boolean, p_tz text, p_color text)
+drop function if exists public.create_crew(text, text, int, text, boolean, text, text);
+create or replace function public.create_crew(p_name text, p_rule text, p_len int, p_mode text, p_proof boolean, p_tz text, p_color text, p_cover text default null)
 returns uuid language plpgsql security definer set search_path = public as $$
 declare v_id uuid; v_tz text := coalesce(nullif(p_tz, ''), 'UTC'); v_day date;
 begin
   if auth.uid() is null then raise exception 'sign in first'; end if;
   begin v_day := (now() at time zone v_tz)::date; exception when others then v_tz := 'UTC'; v_day := (now() at time zone 'UTC')::date; end;
-  insert into crews (name, rule, len, mode, proof, tz, start_date, owner)
-  values (left(trim(p_name), 32), left(trim(coalesce(p_rule, '')), 40), p_len, p_mode, coalesce(p_proof, false), v_tz, v_day, auth.uid())
+  insert into crews (name, rule, len, mode, proof, tz, start_date, owner, color)
+  values (left(trim(p_name), 32), left(trim(coalesce(p_rule, '')), 40), p_len, p_mode, coalesce(p_proof, false), v_tz, v_day, auth.uid(), p_cover)
   returning id into v_id;
   insert into crew_members (crew_id, user_id, color, joined_day) values (v_id, auth.uid(), coalesce(p_color, '#C9C4FF'), v_day);
   return v_id;
@@ -237,7 +261,7 @@ end $$;
 create or replace function public.crew_preview(p_code text) returns json
 language sql stable security definer set search_path = public as $$
   select json_build_object(
-    'name', c.name, 'rule', c.rule, 'len', c.len, 'mode', c.mode, 'proof', c.proof,
+    'name', c.name, 'rule', c.rule, 'len', c.len, 'color', c.color, 'mode', c.mode, 'proof', c.proof,
     'day', ((now() at time zone c.tz)::date - c.start_date) + 1,
     'finished', (now() at time zone c.tz)::date > c.start_date + c.len - 1,
     'count', (select count(*) from crew_members m where m.crew_id = c.id),
@@ -270,11 +294,20 @@ begin
   if not public.is_crew_member(p_old) then raise exception 'not in that crew'; end if;
   select * into c from crews where id = p_old;
   v_day := (now() at time zone c.tz)::date;
-  insert into crews (name, rule, len, mode, proof, tz, start_date, owner)
-  values (c.name, c.rule, c.len, c.mode, c.proof, c.tz, v_day, auth.uid()) returning id into v_id;
+  insert into crews (name, rule, len, mode, proof, tz, start_date, owner, color)
+  values (c.name, c.rule, c.len, c.mode, c.proof, c.tz, v_day, auth.uid(), c.color) returning id into v_id;
   insert into crew_members (crew_id, user_id, color, joined_day)
     select v_id, m.user_id, m.color, v_day from crew_members m where m.crew_id = p_old;
   return v_id;
+end $$;
+
+-- the crew's owner can change its cover color
+create or replace function public.set_crew_color(p_crew uuid, p_color text) returns void
+language plpgsql security definer set search_path = public as $$
+begin
+  if p_color is not null and p_color !~ '^#[0-9A-Fa-f]{6}$' then raise exception 'bad color'; end if;
+  update crews set color = p_color where id = p_crew and owner = auth.uid();
+  if not found then raise exception 'Only the person who started the crew can change its color.'; end if;
 end $$;
 
 -- delete your account and everything you posted (photos are removed by the app first)
@@ -285,12 +318,13 @@ begin
   delete from auth.users where id = auth.uid();
 end $$;
 
-revoke all on function public.create_crew(text, text, int, text, boolean, text, text) from public, anon;
+revoke all on function public.create_crew(text, text, int, text, boolean, text, text, text) from public, anon;
+revoke all on function public.set_crew_color(uuid, text) from public, anon;
 revoke all on function public.join_crew(text, text) from public, anon;
 revoke all on function public.rerun_crew(uuid) from public, anon;
 revoke all on function public.delete_my_account() from public, anon;
-grant execute on function public.create_crew(text, text, int, text, boolean, text, text), public.join_crew(text, text),
-  public.rerun_crew(uuid), public.delete_my_account() to authenticated;
+grant execute on function public.create_crew(text, text, int, text, boolean, text, text, text), public.join_crew(text, text),
+  public.rerun_crew(uuid), public.set_crew_color(uuid, text), public.delete_my_account() to authenticated;
 grant execute on function public.crew_preview(text) to anon, authenticated;
 
 -- ---------- photos ----------

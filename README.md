@@ -70,7 +70,7 @@ Invite links look like `https://tayneoh.github.io/cadence-crews/?j=abc12345`. So
 
 ### 5. Notifications (optional, recommended)
 
-Notifications cover nudges, "Everyone's in", "You're the last link", new posts, cheers, new members, and a daily reminder at a time each person picks. On iPhone they only work after someone adds the app to their Home Screen (iOS 16.4 or later).
+Notifications cover: someone checked in, everyone's in (the chain grew), chain milestones and full weeks, personal streaks, finishing a challenge, nudges and "you're the last link", posts and cheers, new members, and a daily reminder at a time each person picks. Each person can switch any of these off in the You tab. On iPhone they only work after someone adds the app to their Home Screen (iOS 16.4 or later).
 
 1. **Make keys.** On any computer with Node installed, run `npx web-push generate-vapid-keys`. You get a public key and a private key.
 2. **Turn on two extensions.** In Supabase, open **Database → Extensions** and enable `pg_net` and `pg_cron`.
@@ -81,6 +81,10 @@ Notifications cover nudges, "Everyone's in", "You're the last link", new posts, 
    - `APP_URL`: your app's address, e.g. `https://tayneoh.github.io/cadence-crews/`.
 5. **Connect the database.** Open `supabase/notifications.sql` and replace `PUSH_FUNCTION_URL` with the function's address (`https://<project>.supabase.co/functions/v1/crews-push`) and `PUSH_SECRET_VALUE` with your secret. Then run it in the SQL Editor.
 6. **Turn it on in the app.** Put the **public** key into `vapidPublicKey` in `config.js`.
+
+## Updating the database
+
+When the app gains features that need new database pieces, run `supabase/schema.sql` again in the SQL Editor. It's safe to rerun: it keeps your data and only adds what's missing. If you set up notifications, redeploy the `crews-push` function too.
 
 ## Running it day to day
 
@@ -98,3 +102,9 @@ Edit the files and push to `main`. GitHub Pages redeploys on its own. Then bump 
 - **5 of 7 days:** each person needs 5 check-ins per week. The chain only breaks if someone falls short for the week.
 - A day starts at midnight in the time zone of the person who started the crew.
 - Someone who joins partway through only counts from the day they joined.
+- Challenges can be 7, 14, 21, 30, 60 or 90 days, or any custom length from 3 to 365.
+- Each crew picks a color (magenta by default). It colors that crew's chain, buttons and recap.
+
+## Private habits
+
+The Today screen also has a "Just for you" list that only you can see. A **build** habit is ticked off each day and counts a streak. A **break** habit needs no daily tap: it counts days clean, and you tap Slipped if you slip.
