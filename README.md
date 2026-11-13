@@ -108,3 +108,5 @@ Edit the files and push to `main`. GitHub Pages redeploys on its own. Then bump 
 ## Private habits
 
 The Today screen also has a "Just for you" list that only you can see. A **build** habit is ticked off each day and counts a streak. A **break** habit needs no daily tap: it counts days clean, and you tap Slipped if you slip.
+
+Pop-ups appear when you check in, when a crewmate checks in, when everyone is in, when you finish a habit or all of them, and at streak and days-clean milestones. They can be switched off in the You tab.

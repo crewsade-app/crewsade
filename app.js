@@ -482,15 +482,13 @@ function softRefresh(){ clearTimeout(reloadTimer); reloadTimer = setTimeout(() =
 // pop-ups when crewmates check in on their phones
 function snapshot(){ const m = {}; S.crews.forEach(c => { const t = today(c); m[c.id] = {ins:new Set(Object.keys(c.log[t] || {})), full:fullDay(c, t)}; }); return m; }
 function announce(before){
-  const msgs = [];
   S.crews.forEach(c => {
     const b = before[c.id], m0 = me(c); if (!b || !m0 || finished(c)) return;
     const t = today(c), fresh = Object.keys(c.log[t] || {}).filter(id => !b.ins.has(id) && id !== m0.id);
     if (!fresh.length) return;
-    if (!b.full && fullDay(c, t)){ U.burst = c.id; if (!celebrateFor(c)) msgs.push(`${c.name}: everyone's in. Chain ${chainInfo(c).chain}!`); }
-    else fresh.forEach(id => { const m = c.members.find(x => x.id === id); msgs.push(`${first(m && m.name)} checked in · ${c.name} ${doneToday(c)}/${c.members.length}`); });
+    if (!b.full && fullDay(c, t)){ U.burst = c.id; if (!celebrateFor(c)) checkinPop(c, fresh[fresh.length - 1], false, false); }
+    else fresh.forEach(id => checkinPop(c, id, true, false));
   });
-  if (msgs.length) toast(msgs.slice(0, 2).join('  ·  '));
 }
 // a big pop-up for chain milestones, full weeks, finishing, and your own streaks. Returns true if it showed one.
 function celebrateFor(c, mine){
@@ -509,6 +507,51 @@ app.addEventListener('focusout', () => { if (renderLater){ renderLater = false; 
 
 let toastTimer;
 function toast(msg){ U.toast = msg; clearTimeout(toastTimer); toastTimer = setTimeout(() => { U.toast = null; safeRender(); }, 2800); }
+
+/* ---------- pop-ups: a card that springs in for check-ins and habits, then leaves on its own ----------
+   {title, sub, icon, crew, who (member), chain (links to draw), tone}. Turned off in You → falls back to a toast. */
+const popsOn = () => ls.get('crews.pops') !== 'off';
+let popTimer, lastPop = null;
+function pop(p){
+  if (!popsOn()){ toast(p.sub ? `${p.title} · ${p.sub}` : p.title); return; }
+  U.pops = (U.pops || []).concat({...p, id:Date.now() + Math.random()}).slice(-4);
+  if (U.pops.length === 1) armPop();
+}
+function armPop(){ clearTimeout(popTimer); popTimer = setTimeout(nextPop, 2600); }
+function nextPop(){ U.pops = (U.pops || []).slice(1); if (U.pops.length) armPop(); safeRender(); }
+function popView(){
+  const p = (U.pops || [])[0]; if (!p || U.celebrate) return '';
+  const c = p.crew ? crewById(p.crew) : null, fresh = p.id !== lastPop;
+  const badge = p.who ? av(p.who, 'pav')
+    : `<span class="picon ${p.tone || ''}">${ic(p.icon || 'check')}</span>`;
+  const more = U.pops.length > 1 ? `<span class="pmore">+${U.pops.length - 1}</span>` : '';
+  return `<div class="popwrap"><div class="pbox ${c ? 'crewc' : ''} ${fresh ? 'anim' : ''}" style="${c ? ccVars(c) : ''}" data-a="closepop" role="status" aria-live="polite">
+    ${badge}
+    <div class="pt">${esc(p.title)}</div>
+    ${p.sub ? `<div class="ps">${esc(p.sub)}</div>` : ''}
+    ${p.chain ? `<div style="width:100%">${chainSVG(Array(Math.min(p.chain, 7)).fill('full'), {w:220, W:26, H:16, step:19, sw:4, on:'var(--chain-hi)', label:p.title, key:'pop' + p.id})}</div>` : ''}
+    ${more}
+  </div></div>`;
+}
+const STREAK_MARKS = [3, 7, 14, 21, 30, 50, 100, 200, 365];
+// ticking a build habit: a pop-up, or a big one for streak milestones and for finishing every habit today
+function habitDone(h){
+  const t = hToday(), builds = S.habits.filter(x => x.kind === 'build'), k = habitStreak(h);
+  const all = builds.length >= 2 && builds.every(x => x.marks.has(t));
+  if (all){ U.celebrate = {big:String(builds.length), title:'All habits done', sub:`Every habit ticked off today${k > 1 ? `. ${h.name}: ${k} days in a row.` : '.'}`, links:Math.max(...builds.map(habitStreak), 1)}; return; }
+  if (STREAK_MARKS.includes(k)){ U.celebrate = {big:String(k), title:`${k}-day streak`, sub:`${h.name}: ${k} days in a row.`, links:k}; return; }
+  const left = builds.filter(x => !x.marks.has(t)).length;
+  pop({title:h.name, sub:(k > 1 ? `${k} day streak` : 'Done for today') + (left ? ` · ${left} to go` : ''), icon:'check'});
+}
+// break habits have nothing to tap, so their milestones pop up the first time you open the app that day
+function cleanMilestones(){
+  S.habits.filter(h => h.kind === 'break').forEach(h => {
+    const n = daysClean(h), key = 'crews.clean.' + h.id;
+    if (!STREAK_MARKS.includes(n) || ls.get(key) === String(n) || U.celebrate) return;
+    ls.set(key, String(n));
+    U.celebrate = {big:String(n), title:`${n} days clean`, sub:`${h.name}: ${n} days in a row without a slip.`, links:n};
+  });
+}
 function errText(e){
   const m = (e && (e.message || e.error_description)) || '';
   if (/offline|fetch|network/i.test(m)) return "Can't reach the server. Check your connection.";
@@ -840,7 +883,9 @@ function vYou(){
     </div>
     ${demoBar()}
     <div class="lab">Notifications</div>
-    <div class="card">${notif}</div>
+    <div class="card"><div class="row" style="justify-content:space-between;font-size:15px;font-weight:600"><span>Pop-ups in the app</span><button class="toggle" role="switch" aria-checked="${popsOn()}" aria-label="Pop-ups in the app" data-a="popstoggle"></button></div>
+      <div class="sub">Check-ins, finished habits, everyone's in.</div>
+      ${notif}</div>
     ${S.habits.length ? `<div class="lab">Private habits</div><div class="card" style="gap:0;padding:6px 16px">${S.habits.map(h=>`<div class="li"><span class="grow">${esc(h.name)} <span class="hkind">${h.kind==='build'?'Build':'Break'}</span></span><button class="linkbtn" data-a="delhabit" data-v="${h.id}" ${U.confirm==='h'+h.id?'style="color:#B42318"':''}>${U.confirm==='h'+h.id?'Tap to delete':'Delete'}</button></div>`).join('')}</div>` : ''}
     <div class="lab">Appearance</div>
     <div class="seg2" role="group" aria-label="Theme">${['system','light','dark'].map(t=>`<button data-a="theme" data-v="${t}" class="${theme===t?'on':''}">${t[0].toUpperCase()+t.slice(1)}</button>`).join('')}</div>
@@ -938,19 +983,28 @@ function render(){
   const keep = sc0 && lastKey === key ? sc0.scrollTop : 0;
   const hasNav = NAV_SCREENS.includes(U.screen);
   const focusId = document.activeElement && app.contains(document.activeElement) ? document.activeElement.id : null;
-  app.innerHTML = VIEWS[U.screen]() + (hasNav ? nav() : '') + (U.sheet ? sheet() : '') + celebrateView() + (U.toast ? `<div class="toast ${U.sheet||U.celebrate?'top':hasNav?'':'nonav'}" role="status">${ic('rings')}<span>${esc(U.toast)}</span></div>` : '');
+  app.innerHTML = VIEWS[U.screen]() + (hasNav ? nav() : '') + (U.sheet ? sheet() : '') + celebrateView() + popView() + (U.toast ? `<div class="toast ${U.sheet||U.celebrate?'top':hasNav?'':'nonav'}" role="status">${ic('rings')}<span>${esc(U.toast)}</span></div>` : '');
   const sc = app.querySelector('.screen'); if (sc) sc.scrollTop = keep;
   if (focusId){ const el = document.getElementById(focusId); if (el && el.tagName === 'INPUT') el.focus(); }
   lastKey = key;
+  const p0 = (U.pops || [])[0]; if (p0 && !U.celebrate) lastPop = p0.id;
   if (U.burst){ const b = U.burst; setTimeout(() => { if (U.burst === b) U.burst = null; }, 800); }
 }
-function go(s){ U.screen = s; U.addFriend = false; U.confirm = null; U.sheet = null; if (s !== 'recap') U.recapOnly = null; render(); }
+function go(s){ U.screen = s; U.addFriend = false; U.confirm = null; U.sheet = null; if (s !== 'recap') U.recapOnly = null; if (s === 'home') cleanMilestones(); render(); }
 
 /* ---------- check-in (optimistic, so the chain animates right away) ---------- */
 function resultMsg(c, wasFull, prevPaused){
   const nowFull = fullDay(c, today(c));
   if (!wasFull && nowFull){ U.burst = c.id; return prevPaused ? 'Back on track. Chain restarted.' : `Everyone's in. Chain ${chainInfo(c).chain}!`; }
   return `You're in · ${doneToday(c)}/${c.members.length}`;
+}
+function checkinPop(c, who, wasFull, prevPaused, msg){
+  const nowFull = fullDay(c, today(c)), m = c.members.find(x => x.id === who), mine = m && m.you;
+  if (!wasFull && nowFull) return pop({crew:c.id, title:prevPaused ? 'Back on track' : "Everyone's in", sub:prevPaused ? `${c.name}: chain restarted` : `${c.name} · chain ${chainInfo(c).chain}`, chain:chainInfo(c).chain || 1, icon:'link'});
+  const wait = c.members.filter(x => !isDone(c, today(c), x.id)), n = c.members.length - wait.length;
+  const sub = `${c.name} · ${n}/${c.members.length} in` + (wait.length === 1 ? ` · waiting on ${wait[0].you ? 'you' : first(wait[0].name)}` : '');
+  if (mine){ const k = pstreak(c, m.id); pop({crew:c.id, title:"You're in", sub:sub + (k > 1 ? ` · ${k} day streak` : ''), icon:'check'}); }
+  else pop({crew:c.id, who:m, title:`${first(m && m.name)} checked in`, sub});
 }
 async function doCheckIn(c, mid){
   if (!mid && c.proof){ U.crew = c.id; U.compose = {photo:null, blob:null, note:''}; U.sheet = null; go('compose'); return; }
@@ -959,7 +1013,7 @@ async function doCheckIn(c, mid){
   (c.log[t] = c.log[t] || {})[who] = Date.now();
   U.sheet = null;
   const msg = resultMsg(c, wasFull, prevPaused);
-  if (!celebrateFor(c, !mid)) toast(msg); render();
+  if (!celebrateFor(c, !mid)) checkinPop(c, who, wasFull, prevPaused, msg); render();
   try { await api.checkIn(c, who); await refresh(); }
   catch(e){ delete c.log[t][who]; toast(errText(e)); }
   render();
@@ -1083,7 +1137,7 @@ app.addEventListener('click', async e => {
     if ((req && !k.photo) || (!k.photo && !k.note.trim())) return;
     const r = await act(async () => {
       await api.post(c, {note:k.note.trim(), photo:k.photo, blob:k.blob});
-      if (req){ const wasFull = fullDay(c, today(c)), pp = chainInfo(c).st[today(c) - 1] === 'paused'; await api.checkIn(c); await refresh(); const m = resultMsg(c, wasFull, pp); return celebrateFor(crewById(c.id) || c, true) ? null : m; }
+      if (req){ const wasFull = fullDay(c, today(c)), pp = chainInfo(c).st[today(c) - 1] === 'paused'; await api.checkIn(c); await refresh(); const x = crewById(c.id) || c; if (!celebrateFor(x, true)) checkinPop(x, me(x).id, wasFull, pp); return null; }
       return 'Posted';
     }, m => m);
     if (r !== undefined){ U.compose = {photo:null, blob:null, note:''}; if (req){ U.crew = c.id; go('crew'); } else render(); }
@@ -1104,11 +1158,15 @@ app.addEventListener('click', async e => {
   else if (a === 'colorsheet'){ U.sheet = {type:'color', crew:v}; render(); }
   else if (a === 'setcolor'){ const x = crewById(U.sheet.crew); U.sheet = null; x.color = v; render(); act(() => api.setColor(x, v)); }
   else if (a === 'closecele'){ U.celebrate = null; render(); }
+  else if (a === 'closepop') nextPop();
+  else if (a === 'popstoggle'){ ls.set('crews.pops', popsOn() ? 'off' : 'on'); render(); }
   else if (a === 'hkind'){ U.hkind = v; render(); const n = document.getElementById('hn'); if (n) n.focus(); }
   else if (a === 'hstats'){ U.sheet = {type:'hstats', habit:v}; render(); }
   else if (a === 'addhabit'){ U.sheet = {type:'habit'}; U.hkind = 'build'; render(); const n = document.getElementById('hn'); if (n) n.focus(); }
   else if (a === 'habit' || a === 'slip'){ const h = S.habits.find(x => x.id === v), t = hToday(), on = !h.marks.has(t);
-    if (on) h.marks.add(t); else h.marks.delete(t); render();
+    if (on) h.marks.add(t); else h.marks.delete(t);
+    if (a === 'habit' && on) habitDone(h); else if (a === 'slip') pop(on ? {title:'Slip logged', sub:`${h.name}: fresh start tomorrow`, icon:'redo', tone:'soft'} : {title:'Slip undone', sub:`${h.name}: ${daysClean(h)} days clean`, icon:'shield'});
+    render();
     try { await api.markHabit(h, on); } catch(err){ toast(errText(err)); await refresh(); render(); } }
   else if (a === 'delhabit'){ if (U.confirm !== 'h' + v){ U.confirm = 'h' + v; render(); return; } U.confirm = null; act(() => api.deleteHabit(S.habits.find(x => x.id === v)), 'Habit deleted'); }
   else if (a === 'pref'){ const p = {...S.me.prefs, [v]: S.me.prefs[v] === false}; S.me.prefs = p; render(); act(() => api.setPrefs(p)); }

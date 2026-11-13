@@ -169,3 +169,18 @@ input[type=time]{width:auto}
 .celebrate .big{font-family:var(--display);font-size:84px;line-height:.9;font-weight:800;letter-spacing:-.05em;color:var(--chain-hi)}
 .custom-len{width:84px!important;text-align:center}
 .toast.top{bottom:auto;top:calc(env(safe-area-inset-top,0px) + 14px)}
+/* pop-ups */
+.popwrap{position:absolute;inset:0;z-index:35;display:flex;align-items:center;justify-content:center;padding:24px;pointer-events:none}
+.pbox{pointer-events:auto;cursor:pointer;background:var(--hero);color:var(--hero-fg);border-radius:28px;padding:22px 22px 18px;width:100%;max-width:300px;display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;box-shadow:0 24px 60px rgba(0,0,0,.35);position:relative}
+.pbox.anim{animation:popin .45s cubic-bezier(.3,1.6,.5,1)}
+.pbox .pt{font-family:var(--display);font-size:22px;font-weight:800;letter-spacing:-.02em;margin-top:6px}
+.pbox .ps{font-size:14px;color:var(--hero-muted)}
+.picon{width:60px;height:60px;border-radius:50%;display:grid;place-items:center;background:var(--chain-hi);color:#fff;position:relative}
+.picon .ic{width:30px;height:30px;stroke-width:3}
+.picon.soft{background:var(--hero-chip);color:var(--hero-fg)}
+.pbox.anim .picon{animation:burst .6s .15s ease-out}
+.pbox.anim .picon::after{content:"";position:absolute;inset:0;border-radius:50%;border:3px solid var(--chain-hi);animation:ring .8s .2s ease-out both}
+.pbox .pav{width:60px;height:60px;font-size:22px}
+.pmore{position:absolute;top:12px;right:14px;font-size:12px;font-weight:700;color:var(--hero-muted)}
+@keyframes popin{0%{opacity:0;transform:scale(.6) translateY(20px)}100%{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.pbox.anim,.pbox.anim .picon,.pbox.anim .picon::after{animation:none}}
