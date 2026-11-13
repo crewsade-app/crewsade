@@ -3,5 +3,5 @@
 window.CREWS_CONFIG = {
   supabaseUrl: 'https://dxymknhitzbyvirwaesv.supabase.co',      // e.g. 'https://abcdefgh.supabase.co'  (Project Settings -> API)
   supabaseKey: 'sb_publishable_DWHHCYMYuK2XdYX-HP1e9A_sfEq0l0q',      // the publishable / anon key, safe to put in the app
-  vapidPublicKey: ''    // public key for push notifications (README step 5); leave empty to hide notifications
+  vapidPublicKey: 'BFYK2fPEfz4zwo-pwZ0aT54RWZZXn5kGHI7gvF16oQGtCM_1JXSI9FRI9qKG8s0CAD99gTsI5c2QhWWe4HsWoVo'    // public key for push notifications (README step 5); leave empty to hide notifications
 };

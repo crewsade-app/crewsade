@@ -164,7 +164,8 @@ input[type=time]{width:auto}
 .hbox .ic{width:16px;height:16px;stroke-width:3.5}
 .hkind{font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;border-radius:99px;padding:3px 8px;background:var(--chip);color:var(--muted)}
 /* celebration popup */
-.celebrate{position:absolute;inset:0;z-index:40;background:rgba(10,10,14,.6);display:flex;align-items:center;justify-content:center;padding:24px;animation:fadein .25s ease-out}
+.celebrate{position:absolute;inset:0;z-index:40;background:rgba(10,10,14,.6);display:flex;align-items:center;justify-content:center;padding:24px}
 .celebrate .cbox{background:var(--hero);color:var(--hero-fg);border-radius:30px;padding:28px 24px;width:100%;max-width:360px;display:flex;flex-direction:column;align-items:center;gap:14px;text-align:center;animation:pop .4s cubic-bezier(.3,1.5,.5,1)}
 .celebrate .big{font-family:var(--display);font-size:84px;line-height:.9;font-weight:800;letter-spacing:-.05em;color:var(--chain-hi)}
 .custom-len{width:84px!important;text-align:center}
+.toast.top{bottom:auto;top:calc(env(safe-area-inset-top,0px) + 14px)}

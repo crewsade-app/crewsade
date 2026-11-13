@@ -487,7 +487,7 @@ function safeRender(){ const el = document.activeElement; if (el && app.contains
 app.addEventListener('focusout', () => { if (renderLater){ renderLater = false; setTimeout(safeRender, 50); } });
 
 let toastTimer;
-function toast(msg){ U.toast = msg; clearTimeout(toastTimer); toastTimer = setTimeout(() => { U.toast = null; render(); }, 2800); }
+function toast(msg){ U.toast = msg; clearTimeout(toastTimer); toastTimer = setTimeout(() => { U.toast = null; safeRender(); }, 2800); }
 function errText(e){
   const m = (e && (e.message || e.error_description)) || '';
   if (/offline|fetch|network/i.test(m)) return "Can't reach the server. Check your connection.";
@@ -617,24 +617,15 @@ function vHome(){
 
 function habitsCard(){
   const t = hToday();
+  const del = h => `<button class="menu-b" data-a="delhabit" data-v="${h.id}" aria-label="Delete ${esc(h.name)}" style="margin-left:0;${U.confirm==='h'+h.id?'color:#B42318;width:auto;padding:0 8px;font-size:13px;font-weight:700':''}">${U.confirm==='h'+h.id?'Delete?':ic('x','width:16px;height:16px')}</button>`;
   const rows = S.habits.map(h => h.kind === 'build'
     ? `<div class="hb"><button class="hbox ${h.marks.has(t)?'on':''}" data-a="habit" data-v="${h.id}" aria-pressed="${h.marks.has(t)}" aria-label="Done today: ${esc(h.name)}">${h.marks.has(t)?ic('check'):''}</button>
-        <div class="grow"><div style="font-weight:600;font-size:15px">${esc(h.name)}</div><div class="sub">${habitStreak(h)} day streak</div></div><span class="hkind">Build</span></div>`
-    : `<div class="hb"><div class="hbox" style="border-style:solid;border-color:transparent;background:var(--chip);color:var(--ink);font-weight:800;font-size:13px">${daysClean(h)}</div>
-        <div class="grow"><div style="font-weight:600;font-size:15px">${esc(h.name)}</div><div class="sub">${daysClean(h)} day${daysClean(h)===1?'':'s'} clean</div></div>
-        <button class="chip" data-a="slip" data-v="${h.id}">${h.marks.has(t)?'Undo':'Slipped'}</button></div>`).join('');
+        <div class="grow"><div style="font-weight:600;font-size:15px">${esc(h.name)}</div><div class="sub">${habitStreak(h)} day streak</div></div>${del(h)}</div>`
+    : `<div class="hb"><button class="hbox ${h.marks.has(t)?'':'on'}" data-a="slip" data-v="${h.id}" aria-pressed="${!h.marks.has(t)}" aria-label="${h.marks.has(t)?'Undo slip':'Slipped today'}: ${esc(h.name)}" style="${h.marks.has(t)?'':'background:var(--chip);border-color:var(--chip);color:var(--ink)'}">${h.marks.has(t)?ic('x'):ic('shield')}</button>
+        <div class="grow"><div style="font-weight:600;font-size:15px">${esc(h.name)}</div><div class="sub">${h.marks.has(t)?'Slipped today. Tap to undo.':`${daysClean(h)} day${daysClean(h)===1?'':'s'} clean`}</div></div>${del(h)}</div>`).join('');
   return `<div style="display:flex;flex-direction:column;gap:8px">
-    <div class="row" style="gap:6px;color:var(--muted)">${ic('lock','width:14px;height:14px')}<div class="lab">Just for you</div></div>
-    <div class="card" style="gap:0;padding:14px 16px">
-      ${rows}
-      <form data-f="habit" class="hb" style="flex-wrap:wrap;gap:8px">
-        <label for="hn" class="sr">New private habit</label>
-        <input id="hn" type="text" maxlength="40" placeholder="New habit" autocomplete="off" style="flex:1;min-width:140px;padding:10px 12px">
-        <div class="seg2" role="group" aria-label="Habit type" style="flex:none"><button type="button" data-a="hkind" data-v="build" class="${U.hkind==='build'?'on':''}" style="padding:7px 10px">Build</button><button type="button" data-a="hkind" data-v="break" class="${U.hkind==='break'?'on':''}" style="padding:7px 10px">Break</button></div>
-        <button type="submit" class="back" aria-label="Add habit" style="width:38px;height:38px;background:var(--chip)">${ic('plus')}</button>
-      </form>
-    </div>
-    <div class="sub">Only you see these. Build a habit by ticking it off daily, or break one by counting days clean.</div>
+    <div class="row" style="gap:6px;color:var(--muted)">${ic('lock','width:14px;height:14px')}<div class="lab grow">Just for you</div><button class="linkbtn row" style="gap:4px" data-a="addhabit">${ic('plus','width:16px;height:16px')}Add</button></div>
+    ${S.habits.length ? `<div class="card" style="gap:0;padding:14px 16px">${rows}</div>` : `<button class="card" data-a="addhabit" style="flex-direction:row;align-items:center;color:var(--muted);font-weight:600;font-size:15px;border:2px dashed var(--line);background:transparent">${ic('plus')}Add a private habit</button>`}
   </div>`;
 }
 
@@ -687,7 +678,7 @@ function vCrew(){
       <div class="row" style="align-items:baseline">
         <div class="h ${U.burst===c.id?'burst':''}" style="font-size:64px;line-height:.85;font-weight:800;letter-spacing:-.05em;color:var(--chain-hi)">${info.chain}</div>
         <div style="font-size:15px;font-weight:600">day chain</div>
-        <div style="margin-left:auto;font-size:13px;color:var(--hero-muted)">best ${info.best}</div>
+        <div style="margin-left:auto;font-size:13px;color:var(--hero-muted)">Best ${info.best}</div>
       </div>
       ${chainSVG(chainStates(c, info), {w:314, on:'var(--chain-hi)', off:'#5E6070', wait:'var(--hero-muted)', key:'crew'+c.id, label:info.chain+' day chain, day '+dayNum(c)+' of '+c.len})}
       <div class="legend" style="color:var(--hero-muted)"><span><svg width="16" height="10" aria-hidden="true"><rect x="1.5" y="1.5" width="13" height="7" rx="3.5" fill="none" stroke="var(--chain-hi)" stroke-width="3"/></svg>Linked</span><span><svg width="16" height="10" aria-hidden="true"><rect x="1.5" y="1.5" width="13" height="7" rx="3.5" fill="none" stroke="var(--chain-hi)" stroke-width="3" opacity=".45"/></svg>Saved</span><span><svg width="16" height="10" aria-hidden="true"><rect x="1.5" y="1.5" width="13" height="7" rx="3.5" fill="none" stroke="#5E6070" stroke-width="3" transform="rotate(-14 8 5)"/></svg>Broken</span></div>
@@ -710,7 +701,6 @@ function vCrew(){
       <div class="row"><div class="h grow" style="font-size:18px;font-weight:700">${c.members.length===1?'Invite your crew':'Invite more'}</div><span class="sub">${c.members.length}/${MAX}</span></div>
       <div class="row" style="background:var(--chip);border-radius:12px;padding:10px 12px"><div class="grow" style="font-size:14px;font-weight:600;user-select:all;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(inviteUrl(c).replace(/^https?:\/\//,''))}</div></div>
       <button class="btn sm ${c.members.length===1?'chainbtn':'ghost'}" data-a="invite" data-v="${c.id}">${ic('share','width:16px;height:16px')}Share invite link</button>
-      ${c.members.length===1?`<div class="sub">Best with 3 to 5 people.</div>`:''}
     </div>` : ''}
     ${notifAsk(meDone && !fin)}
     ${meDone && !postedToday && !fin ? composer(c, false) : ''}
@@ -780,9 +770,9 @@ function recapCard(c){
     <div style="position:relative;margin-top:56px"><div class="h" style="font-size:72px;line-height:.85;font-weight:800;letter-spacing:-.05em">${w.hit}<span style="color:var(--hero-muted)">/${w.slots}</span></div><div style="font-size:15px;font-weight:600;margin-top:6px">check-ins</div></div>
     <div style="position:relative">${chainSVG(w.st,{w:306, W:36, H:22, step:27, sw:5.5, on:'var(--chain-hi)', off:'#5E6070', wait:'var(--hero-muted)', label:'This week', key:'recap'+c.id})}</div>
     <div class="row" style="gap:10px">
-      <div style="background:var(--hero-chip);border-radius:16px;padding:12px;flex:1"><div class="h" style="font-size:26px;font-weight:800;color:var(--chain-hi)">${info.chain}</div><div style="font-size:12px;color:var(--hero-muted)">chain</div></div>
-      <div style="background:var(--hero-chip);border-radius:16px;padding:12px;flex:1"><div class="h" style="font-size:26px;font-weight:800">${info.best}</div><div style="font-size:12px;color:var(--hero-muted)">best</div></div>
-      <div style="background:var(--hero-chip);border-radius:16px;padding:12px;flex:1;min-width:0"><div class="h" style="font-size:20px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${em?(em.you?'You':esc(first(em.name))):'-'}</div><div style="font-size:12px;color:var(--hero-muted)">first in most</div></div>
+      <div style="background:var(--hero-chip);border-radius:16px;padding:12px;flex:1"><div class="h" style="font-size:26px;font-weight:800;color:var(--chain-hi)">${info.chain}</div><div style="font-size:12px;color:var(--hero-muted)">Chain</div></div>
+      <div style="background:var(--hero-chip);border-radius:16px;padding:12px;flex:1"><div class="h" style="font-size:26px;font-weight:800">${info.best}</div><div style="font-size:12px;color:var(--hero-muted)">Best</div></div>
+      <div style="background:var(--hero-chip);border-radius:16px;padding:12px;flex:1;min-width:0"><div class="h" style="font-size:20px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${em?(em.you?'You':esc(first(em.name))):'-'}</div><div style="font-size:12px;color:var(--hero-muted)">First in most</div></div>
     </div>
     <div class="row" style="flex-wrap:wrap;gap:6px">${c.members.map(m=>av(m,'sm')).join('')}</div>
     <div class="row" style="gap:8px">
@@ -841,6 +831,7 @@ function nav(){
   return acc + `<nav class="tabs">${t('home','users','Crews')}${t('new','flag','Challenges')}${t('recap','bars','Recaps')}${t('you','user','You')}</nav>`;
 }
 
+let lastSheet = null;
 function sheet(){
   const s = U.sheet; let body = '';
   if (s.type === 'checkin'){
@@ -859,11 +850,19 @@ function sheet(){
     const c = crewById(s.crew); if (!c){ U.sheet = null; return ''; }
     body = `<div class="h" style="font-size:20px;font-weight:800">Crew color</div><div class="sub">Changes the chain and buttons for everyone in ${esc(c.name)}.</div>
       <div class="swatches" style="justify-content:center;padding:8px 0">${CREW_COLORS.map(k=>`<button class="sw-b ${crewColor(c).hi===k.hi?'on':''}" data-a="setcolor" data-v="${k.hi}" style="background:${k.hi};width:46px;height:46px" aria-label="${k.name}"></button>`).join('')}</div>`;
+  } else if (s.type === 'habit'){
+    body = `<div class="h" style="font-size:20px;font-weight:800">New private habit</div>
+      <form data-f="habit" style="display:flex;flex-direction:column;gap:12px">
+        <label for="hn" class="sr">Habit name</label><input id="hn" type="text" maxlength="40" value="${esc(U.hname||'')}" placeholder="${U.hkind==='build'?'e.g. Read 10 pages':'e.g. No sugar'}" autocomplete="off">
+        <div class="seg2" role="group" aria-label="Habit type"><button type="button" data-a="hkind" data-v="build" class="${U.hkind==='build'?'on':''}">Build a habit</button><button type="button" data-a="hkind" data-v="break" class="${U.hkind==='break'?'on':''}">Break a habit</button></div>
+        <button class="btn chainbtn" type="submit">Add habit</button>
+      </form>`;
   } else if (s.type === 'install'){
     body = `<div class="h" style="font-size:20px;font-weight:800">Install on iPhone</div>
       <div style="font-size:15px;line-height:1.5">In Safari, tap the Share button, then <b>Add to Home Screen</b>. Open the app from your Home Screen to get notifications.</div>`;
   }
-  return `<div class="sheet-bg" data-a="closesheet"><div class="sheet" data-stop role="dialog" aria-modal="true">
+  const fresh = lastSheet !== s; lastSheet = s;   // only slide up when it first opens, not on every redraw
+  return `<div class="sheet-bg" data-a="closesheet"><div class="sheet" data-stop role="dialog" aria-modal="true" ${fresh?'':'style="animation:none"'}>
     <div style="width:40px;height:5px;border-radius:9px;background:var(--line);align-self:center"></div>
     ${body}
     <button class="btn ghost sm" data-a="closesheet">Cancel</button>
@@ -895,7 +894,7 @@ function render(){
   const keep = sc0 && lastKey === key ? sc0.scrollTop : 0;
   const hasNav = NAV_SCREENS.includes(U.screen);
   const focusId = document.activeElement && app.contains(document.activeElement) ? document.activeElement.id : null;
-  app.innerHTML = VIEWS[U.screen]() + (hasNav ? nav() : '') + (U.sheet ? sheet() : '') + celebrateView() + (U.toast ? `<div class="toast ${hasNav?'':'nonav'}" role="status">${ic('rings')}<span>${esc(U.toast)}</span></div>` : '');
+  app.innerHTML = VIEWS[U.screen]() + (hasNav ? nav() : '') + (U.sheet ? sheet() : '') + celebrateView() + (U.toast ? `<div class="toast ${U.sheet||U.celebrate?'top':hasNav?'':'nonav'}" role="status">${ic('rings')}<span>${esc(U.toast)}</span></div>` : '');
   const sc = app.querySelector('.screen'); if (sc) sc.scrollTop = keep;
   if (focusId){ const el = document.getElementById(focusId); if (el && el.tagName === 'INPUT') el.focus(); }
   lastKey = key;
@@ -951,8 +950,8 @@ async function recapImage(c){
     while (fs > 40 && g.measureText(val).width > 210){ fs -= 6; g.font = `800 ${fs}px "Bricolage Grotesque", Inter, sans-serif`; }
     g.fillStyle = color; g.fillText(val, x + 40, 1420);
     g.fillStyle = '#B4B6C2'; g.font = '500 36px Inter, sans-serif'; g.fillText(label, x + 40, 1470); };
-  box(90, 'day chain', String(w.info.chain), mag); box(400, 'best', String(w.info.best), '#FFFFFF');
-  box(710, 'first in most', w.early ? (w.early.you ? 'You' : first(w.early.name)).slice(0, 12) : '-', '#FFFFFF');
+  box(90, 'Day chain', String(w.info.chain), mag); box(400, 'Best', String(w.info.best), '#FFFFFF');
+  box(710, 'First in most', w.early ? (w.early.you ? 'You' : first(w.early.name)).slice(0, 12) : '-', '#FFFFFF');
   c.members.slice(0, 8).forEach((m, i) => { g.fillStyle = m.you ? mag : m.color; g.beginPath(); g.arc(150 + i * 110, 1640, 46, 0, Math.PI * 2); g.fill();
     g.fillStyle = '#141418'; g.font = '700 36px Inter, sans-serif'; g.textAlign = 'center'; g.fillText(initials(m.name), 150 + i * 110, 1653); g.textAlign = 'left'; });
   g.fillStyle = '#B4B6C2'; g.font = '600 38px Inter, sans-serif'; g.fillText('cadence crews · ' + inviteUrl(c).replace(/^https?:\/\//, '').slice(0, 44), 90, 1810);
@@ -1004,8 +1003,9 @@ function clearInvite(){ U.invite = null; U.preview = null; ls.del('crews.invite'
    EVENTS
    ===================================================================== */
 app.addEventListener('click', async e => {
-  if (e.target.closest('[data-stop]') && !e.target.closest('[data-a]')) return;
-  const b = e.target.closest('[data-a]'); if (!b || b.disabled) return;
+  const b = e.target.closest('[data-a]'), stop = e.target.closest('[data-stop]');
+  if (stop && (!b || (b !== stop && b.contains(stop)))) return;   // clicks inside a sheet or popup don't close it
+  if (!b || b.disabled) return;
   const a = b.dataset.a, v = b.dataset.v;
   if (!['leave','delcrew','erase','delacct','delhabit'].includes(a)) U.confirm = null;
   const c = v ? crewById(v) : null;
@@ -1061,6 +1061,7 @@ app.addEventListener('click', async e => {
   else if (a === 'setcolor'){ const x = crewById(U.sheet.crew); U.sheet = null; x.color = v; render(); act(() => api.setColor(x, v)); }
   else if (a === 'closecele'){ U.celebrate = null; render(); }
   else if (a === 'hkind'){ U.hkind = v; render(); const n = document.getElementById('hn'); if (n) n.focus(); }
+  else if (a === 'addhabit'){ U.sheet = {type:'habit'}; U.hkind = 'build'; render(); const n = document.getElementById('hn'); if (n) n.focus(); }
   else if (a === 'habit' || a === 'slip'){ const h = S.habits.find(x => x.id === v), t = hToday(), on = !h.marks.has(t);
     if (on) h.marks.add(t); else h.marks.delete(t); render();
     try { await api.markHabit(h, on); } catch(err){ toast(errText(err)); await refresh(); render(); } }
@@ -1116,6 +1117,7 @@ app.addEventListener('input', e => {
   else if (t.id === 'cn'){ U.draft.name = t.value; const btn = app.querySelector('[data-a="create"]'); if (btn) btn.disabled = !t.value.trim(); }
   else if (t.id === 'cr') U.draft.rule = t.value;
   else if (t.id === 'cl') U.draft.len = t.value;
+  else if (t.id === 'hn') U.hname = t.value;
 });
 app.addEventListener('change', async e => {
   const t = e.target;
@@ -1153,7 +1155,7 @@ app.addEventListener('submit', async e => {
     catch(err){ U.busy = false; U.authErr = errText(err); render(); }
   }
   else if (f === 'name'){ const n = val('nm').slice(0, 24); if (!n) return; await act(() => api.setName(n)); if (S.me.name) enter(); }
-  else if (f === 'habit'){ const n = val('hn').slice(0, 40); if (!n) return; await act(() => api.addHabit(n, U.hkind), U.hkind === 'build' ? 'Habit added' : 'Counting days clean from today'); const el = document.getElementById('hn'); if (el) el.focus(); }
+  else if (f === 'habit'){ const n = val('hn').slice(0, 40); if (!n) return; U.sheet = null; U.hname = ''; await act(() => api.addHabit(n, U.hkind), U.hkind === 'build' ? 'Habit added' : 'Counting days clean from today'); }
   else if (f === 'friend'){ const n = val('fn'); if (!n) return; U.addFriend = false; act(() => api.addFriend(crewById(U.crew), n)); }
 });
 
