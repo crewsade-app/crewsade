@@ -101,6 +101,27 @@ const hToday = () => tzIdx(MY_TZ) + (DEMO ? demo.offset : 0);
    build: tick it off each day; the streak counts days in a row.
    break: nothing to tick; it counts days clean since you started or last slipped. */
 function habitStreak(h){ const t = hToday(); let d = h.marks.has(t) ? t : t - 1, n = 0; while (h.marks.has(d)){ n++; d--; } return n; }
+function habitStats(h){
+  const t = hToday(), start = h.startDay, total = t - start + 1, win = Math.min(30, total);
+  const inWin = d => d > t - win && d <= t;
+  if (h.kind === 'build'){
+    let best = 0, run = 0, done = 0, recent = 0;
+    for (let d = start; d <= t; d++){ if (h.marks.has(d)){ run++; done++; best = Math.max(best, run); if (inWin(d)) recent++; } else if (d < t) run = 0; }
+    return {current:habitStreak(h), best, done, rate:Math.round(recent / win * 100), win, total};
+  }
+  let best = 0, run = 0, slips = 0, recentSlips = 0;
+  for (let d = start; d <= t; d++){ if (h.marks.has(d)){ slips++; run = 0; if (inWin(d)) recentSlips++; } else { run++; best = Math.max(best, run); } }
+  return {current:daysClean(h), best, slips, rate:Math.round((win - recentSlips) / win * 100), win, total};
+}
+function habitCells(h, n){
+  const t = hToday(); let out = '';
+  for (let d = t - n + 1; d <= t; d++){
+    const pre = d < h.startDay, m = h.marks.has(d);
+    const bg = pre ? 'transparent' : h.kind === 'build' ? (m ? 'var(--ink)' : 'var(--line)') : (m ? '#E5484D' : 'var(--ink)');
+    out += `<span title="${dateOf(d)}" style="aspect-ratio:1;border-radius:5px;background:${bg};${pre?'border:1.5px dashed var(--line)':''}${d===t?';outline:2px solid var(--chain);outline-offset:1px':''}"></span>`;
+  }
+  return out;
+}
 function daysClean(h){ const t = hToday(); if (h.marks.has(t)) return 0; let last = h.startDay - 1; h.marks.forEach(d => { if (d <= t && d > last) last = d; }); return t - last; }
 
 /* ---------- chain logic ---------- */
@@ -620,9 +641,9 @@ function habitsCard(){
   const del = h => `<button class="menu-b" data-a="delhabit" data-v="${h.id}" aria-label="Delete ${esc(h.name)}" style="margin-left:0;${U.confirm==='h'+h.id?'color:#B42318;width:auto;padding:0 8px;font-size:13px;font-weight:700':''}">${U.confirm==='h'+h.id?'Delete?':ic('x','width:16px;height:16px')}</button>`;
   const rows = S.habits.map(h => h.kind === 'build'
     ? `<div class="hb"><button class="hbox ${h.marks.has(t)?'on':''}" data-a="habit" data-v="${h.id}" aria-pressed="${h.marks.has(t)}" aria-label="Done today: ${esc(h.name)}">${h.marks.has(t)?ic('check'):''}</button>
-        <div class="grow"><div style="font-weight:600;font-size:15px">${esc(h.name)}</div><div class="sub">${habitStreak(h)} day streak</div></div>${del(h)}</div>`
+        <button class="grow" data-a="hstats" data-v="${h.id}" style="text-align:left"><div style="font-weight:600;font-size:15px">${esc(h.name)}</div><div class="sub">${habitStreak(h)} day streak · ${habitStats(h).rate}%</div></button>${del(h)}</div>`
     : `<div class="hb"><button class="hbox ${h.marks.has(t)?'':'on'}" data-a="slip" data-v="${h.id}" aria-pressed="${!h.marks.has(t)}" aria-label="${h.marks.has(t)?'Undo slip':'Slipped today'}: ${esc(h.name)}" style="${h.marks.has(t)?'':'background:var(--chip);border-color:var(--chip);color:var(--ink)'}">${h.marks.has(t)?ic('x'):ic('shield')}</button>
-        <div class="grow"><div style="font-weight:600;font-size:15px">${esc(h.name)}</div><div class="sub">${h.marks.has(t)?'Slipped today. Tap to undo.':`${daysClean(h)} day${daysClean(h)===1?'':'s'} clean`}</div></div>${del(h)}</div>`).join('');
+        <button class="grow" data-a="hstats" data-v="${h.id}" style="text-align:left"><div style="font-weight:600;font-size:15px">${esc(h.name)}</div><div class="sub">${h.marks.has(t)?'Slipped today. Tap the box to undo.':`${daysClean(h)} day${daysClean(h)===1?'':'s'} clean · best ${habitStats(h).best}`}</div></button>${del(h)}</div>`).join('');
   return `<div style="display:flex;flex-direction:column;gap:8px">
     <div class="row" style="gap:6px;color:var(--muted)">${ic('lock','width:14px;height:14px')}<div class="lab grow">Just for you</div><button class="linkbtn row" style="gap:4px" data-a="addhabit">${ic('plus','width:16px;height:16px')}Add</button></div>
     ${S.habits.length ? `<div class="card" style="gap:0;padding:14px 16px">${rows}</div>` : `<button class="card" data-a="addhabit" style="flex-direction:row;align-items:center;color:var(--muted);font-weight:600;font-size:15px;border:2px dashed var(--line);background:transparent">${ic('plus')}Add a private habit</button>`}
@@ -781,10 +802,21 @@ function recapCard(c){
     </div>
   </div>`;
 }
+function habitsRecap(){
+  const t = hToday();
+  const rows = S.habits.map(h => {
+    let k = 0, n = 0; for (let d = Math.max(h.startDay, t - 6); d <= t; d++){ n++; if (h.marks.has(d)) k++; }
+    const label = h.kind === 'build' ? `${k}/${n} days` : `${n - k}/${n} clean`;
+    return `<button class="li" data-a="hstats" data-v="${h.id}" style="text-align:left"><span class="grow" style="font-weight:600">${esc(h.name)}</span>
+      <span style="display:grid;grid-template-columns:repeat(7,10px);gap:3px">${habitCells(h, 7)}</span><span class="sub" style="width:70px;text-align:right">${label}</span></button>`;
+  }).join('');
+  return `<div class="card" style="gap:0;flex:none"><div class="row" style="gap:6px;color:var(--muted);margin-bottom:10px">${ic('lock','width:14px;height:14px')}<div class="lab">Just for you · this week</div></div>${rows}</div>`;
+}
 function vRecap(){
   const list = U.recapOnly ? S.crews.filter(c => c.id === U.recapOnly) : S.crews;
   return `<div class="screen"><h2 class="title">Recaps</h2>
-    ${list.length ? list.map(recapCard).join('') : `<div class="empty"><span style="color:var(--chain)">${ic('rings','width:84px;height:84px;stroke-width:2.2')}</span><div class="h" style="font-size:22px;font-weight:800">Your first recap shows up here</div></div>`}
+    ${!U.recapOnly && S.habits.length ? habitsRecap() : ''}
+    ${list.length ? list.map(recapCard).join('') : S.habits.length ? '' : `<div class="empty"><span style="color:var(--chain)">${ic('rings','width:84px;height:84px;stroke-width:2.2')}</span><div class="h" style="font-size:22px;font-weight:800">Your first recap shows up here</div></div>`}
   </div>`;
 }
 
@@ -857,6 +889,18 @@ function sheet(){
         <div class="seg2" role="group" aria-label="Habit type"><button type="button" data-a="hkind" data-v="build" class="${U.hkind==='build'?'on':''}">Build a habit</button><button type="button" data-a="hkind" data-v="break" class="${U.hkind==='break'?'on':''}">Break a habit</button></div>
         <button class="btn chainbtn" type="submit">Add habit</button>
       </form>`;
+  } else if (s.type === 'hstats'){
+    const h = S.habits.find(x => x.id === s.habit); if (!h){ U.sheet = null; return ''; }
+    const st = habitStats(h), b = h.kind === 'build';
+    const tile = (v, l, hi) => `<div style="background:var(--card);border-radius:16px;padding:12px;flex:1;min-width:0"><div class="h" style="font-size:28px;font-weight:800;${hi?'color:var(--chain-text)':''}">${v}</div><div class="sub" style="font-size:12px">${l}</div></div>`;
+    body = `<div class="row"><div class="grow"><div class="h" style="font-size:22px;font-weight:800">${esc(h.name)}</div><div class="sub">${b?'Building':'Breaking'} · since ${new Date(h.startDay*DAY).toLocaleDateString(undefined,{month:'short',day:'numeric',timeZone:'UTC'})}</div></div><span class="hkind">${b?'Build':'Break'}</span></div>
+      <div class="row" style="gap:8px">${b ? tile(st.current, 'Current streak', true) + tile(st.best, 'Best streak') + tile(st.rate + '%', `Last ${st.win} days`)
+        : tile(st.current, 'Days clean', true) + tile(st.best, 'Best run') + tile(st.slips, st.slips === 1 ? 'Slip' : 'Slips')}</div>
+      <div class="row" style="gap:8px">${b ? tile(st.done, 'Days done') + tile(st.total, 'Days tracked') : tile(st.rate + '%', `Clean, last ${st.win} days`) + tile(st.total, 'Days tracked')}</div>
+      <div class="lab">Last 4 weeks</div>
+      <div style="display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px">${habitCells(h, 28)}</div>
+      <div class="legend" style="color:var(--muted)">${b ? `<span><span style="width:10px;height:10px;border-radius:3px;background:var(--ink)"></span>Done</span><span><span style="width:10px;height:10px;border-radius:3px;background:var(--line)"></span>Missed</span>`
+        : `<span><span style="width:10px;height:10px;border-radius:3px;background:var(--ink)"></span>Clean</span><span><span style="width:10px;height:10px;border-radius:3px;background:#E5484D"></span>Slipped</span>`}</div>`;
   } else if (s.type === 'install'){
     body = `<div class="h" style="font-size:20px;font-weight:800">Install on iPhone</div>
       <div style="font-size:15px;line-height:1.5">In Safari, tap the Share button, then <b>Add to Home Screen</b>. Open the app from your Home Screen to get notifications.</div>`;
@@ -1061,6 +1105,7 @@ app.addEventListener('click', async e => {
   else if (a === 'setcolor'){ const x = crewById(U.sheet.crew); U.sheet = null; x.color = v; render(); act(() => api.setColor(x, v)); }
   else if (a === 'closecele'){ U.celebrate = null; render(); }
   else if (a === 'hkind'){ U.hkind = v; render(); const n = document.getElementById('hn'); if (n) n.focus(); }
+  else if (a === 'hstats'){ U.sheet = {type:'hstats', habit:v}; render(); }
   else if (a === 'addhabit'){ U.sheet = {type:'habit'}; U.hkind = 'build'; render(); const n = document.getElementById('hn'); if (n) n.focus(); }
   else if (a === 'habit' || a === 'slip'){ const h = S.habits.find(x => x.id === v), t = hToday(), on = !h.marks.has(t);
     if (on) h.marks.add(t); else h.marks.delete(t); render();
