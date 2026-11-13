@@ -1,6 +1,6 @@
 // Cadence Crews service worker: offline app shell and push notifications.
 // After changing any app file, bump CACHE_VERSION so installed copies update.
-const CACHE_VERSION = 'crews-v1';
+const CACHE_VERSION = 'crews-v2';
 const SHELL = ['./', 'index.html', 'app.css', 'app.js', 'config.js', 'manifest.json', 'icon.svg', 'icon-192.png', 'icon-512.png', 'icon-180.png'];
 
 self.addEventListener('install', e => {
