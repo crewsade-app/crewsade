@@ -208,3 +208,5 @@ input[type=time]{width:auto}
 .linkbtn{min-height:36px;padding:6px 8px;margin:-6px -8px;display:inline-flex;align-items:center}
 .hbox{position:relative}
 .hbox::before{content:"";position:absolute;inset:-8px}
+/* short labels and badges never wrap */
+.first,.hkind,.pmore,.av,.tab,.seg2 button,.lab,.btn,.chip{white-space:nowrap;overflow-wrap:normal}
