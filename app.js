@@ -15,7 +15,7 @@ const I = {
   plus:'<path d="M12 5v14M5 12h14"/>',
   bars:'<path d="M4 20V11M10 20V5M16 20v-6M21 20H3"/>',
   user:'<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',
-  rings:'<rect x="1.5" y="8" width="13" height="8" rx="4" transform="rotate(-40 8 12)"/><rect x="9.5" y="8" width="13" height="8" rx="4" transform="rotate(-40 16 12)"/>',
+  rings:'<g transform="rotate(-45 12 12)"><rect x="0.5" y="8.25" width="10.5" height="7.5" rx="3.75"/><rect x="13" y="8.25" width="10.5" height="7.5" rx="3.75"/><path d="M7.5 12h9"/></g>',
   check:'<path d="M20 6 9 17l-5-5"/>',
   back:'<path d="M19 12H5M12 19l-7-7 7-7"/>',
   x:'<path d="M18 6 6 18M6 6l12 12"/>',
