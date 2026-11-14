@@ -78,6 +78,12 @@ language sql immutable set search_path = public as $$
     else 'direct' end;
 $$;
 
+-- admins' own emails, so their test sign-ups and activity stay out of the numbers
+create or replace function public.crews_admin_emails() returns setof text
+language sql stable security definer set search_path = public, auth as $$
+  select lower(u.email) from public.crew_admins a join auth.users u on u.id = a.user_id where u.email is not null;
+$$;
+
 create or replace function public.crews_is_admin() returns boolean
 language sql stable security definer set search_path = public as $$
   select auth.uid() is not null and exists (select 1 from crew_admins where user_id = auth.uid());
@@ -141,9 +147,10 @@ $$;
 create or replace function public.waitlist_total() returns json
 language sql stable security definer set search_path = public as $$
   select json_build_object(
-    'people', (select count(*) from crew_waitlist),
-    'crews', (select count(distinct crew_id) from crew_waitlist),
-    'full_crews', (select count(*) from (select crew_id from crew_waitlist group by crew_id having count(*) >= 3) f));
+    'people', (select count(*) from crew_waitlist w where lower(w.email) not in (select public.crews_admin_emails())),
+    'crews', (select count(distinct crew_id) from crew_waitlist w where lower(w.email) not in (select public.crews_admin_emails())),
+    'full_crews', (select count(*) from (select crew_id from crew_waitlist w where lower(w.email) not in (select public.crews_admin_emails())
+                   group by crew_id having count(*) >= 3) f));
 $$;
 
 -- count a visit to the landing page
@@ -173,8 +180,10 @@ begin
 
   with
   days as (select generate_series(v_from, v_today, interval '1 day')::date as day),
+  -- your own data is left out: admins' waitlist sign-ups, accounts, check-ins and the crews they started
+  adm as (select user_id from crew_admins),
   wl as (select w.*, (w.created_at at time zone v_tz)::date as day, public.crews_source(w.utm_source, w.referrer) as src
-         from crew_waitlist w),
+         from crew_waitlist w where lower(w.email) not in (select public.crews_admin_emails())),
   wcrew as (select c.id, c.created_at, (c.created_at at time zone v_tz)::date as day, count(w.id) as size,
               max(case when w.leader then w.src end) as src
             from crew_waitlist_crews c join wl w on w.crew_id = c.id group by c.id),
@@ -182,12 +191,14 @@ begin
   vis as (select v.*, (v.created_at at time zone v_tz)::date as day,
             case when v.invited then 'friend link' else public.crews_source(v.utm_source, v.referrer) end as src
           from crew_site_visits v),
-  prof as (select p.id, p.created_at, (p.created_at at time zone v_tz)::date as day from crew_profiles p),
+  prof as (select p.id, p.created_at, (p.created_at at time zone v_tz)::date as day from crew_profiles p
+           where p.id not in (select user_id from adm)),
   cr as (select c.*, (c.created_at at time zone v_tz)::date as cday, (now() at time zone c.tz)::date as local_today,
            c.start_date + c.len - 1 as last_day,
            (select count(*) from crew_members m where m.crew_id = c.id) as members
-         from crews c),
-  ci as (select k.*, (k.created_at at time zone v_tz)::date as cday from crew_checkins k)
+         from crews c where c.owner is null or c.owner not in (select user_id from adm)),
+  ci as (select k.*, (k.created_at at time zone v_tz)::date as cday from crew_checkins k
+         where k.user_id not in (select user_id from adm))
   select json_build_object(
     'generated_at', now(), 'tz', v_tz, 'from', v_from, 'to', v_today,
 
@@ -280,6 +291,7 @@ begin
     select w.email, w.name, c.code, c.name, c.challenge, (select count(*) from crew_waitlist x where x.crew_id = c.id),
       w.leader, public.crews_source(w.utm_source, w.referrer), w.utm_campaign, w.utm_content, w.heard, w.created_at
     from crew_waitlist w join crew_waitlist_crews c on c.id = w.crew_id
+    where lower(w.email) not in (select public.crews_admin_emails())
     order by c.created_at, w.created_at;
 end $$;
 
@@ -289,6 +301,7 @@ revoke all on function public.waitlist_crew(text) from public, anon, authenticat
 revoke all on function public.waitlist_total() from public, anon, authenticated;
 revoke all on function public.site_visit(text, jsonb, boolean) from public, anon, authenticated;
 revoke all on function public.crews_is_admin() from public, anon, authenticated;
+revoke all on function public.crews_admin_emails() from public, anon, authenticated;
 revoke all on function public.crews_admin_stats(int, text) from public, anon, authenticated;
 revoke all on function public.crews_admin_waitlist() from public, anon, authenticated;
 grant execute on function public.waitlist_join(text, text, text, text, text, text, jsonb), public.waitlist_crew(text),

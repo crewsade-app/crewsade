@@ -373,7 +373,9 @@ footer a{color:var(--muted)}
   }).catch(() => {});
 
   // ---------- count this visit (once per tab) ----------
-  if (!ss.get('crews_seen')) {
+  // your own visits aren't counted: opening the stats page (or this page with ?notrack=1) marks this browser as yours
+  if (q.get('notrack') === '1') store.set('crews_no_track', true);
+  if (!ss.get('crews_seen') && !store.get('crews_no_track')) {
     ss.set('crews_seen', '1');
     rpc('site_visit', {p_page: 'join', p_src: Object.assign({}, src, ref ? {referrer: ref} : {}), p_invited: !!code}).catch(() => {});
   }
