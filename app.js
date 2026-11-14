@@ -97,6 +97,64 @@ const demo = {offset:0};
 const today = c => tzIdx(c.tz) + (DEMO ? demo.offset : 0);
 const hToday = () => tzIdx(MY_TZ) + (DEMO ? demo.offset : 0);
 
+
+/* ---------- charts (shadcn-style: a card with a title, a soft chart, a one-line trend) ----------
+   pts: [{l: x label, v: value, tip: tooltip text}]. Tap or hover a point for its tooltip. */
+const dayLabel = d => new Date(d * DAY).toLocaleDateString(undefined, {weekday:'narrow', timeZone:'UTC'});
+const shortDate = d => new Date(d * DAY).toLocaleDateString(undefined, {month:'short', day:'numeric', timeZone:'UTC'});
+function chartFrame(pts, max, key, inner){
+  const W = 320, H = 150, L = 22, R = 6, T = 10, B = 22, iw = W - L - R, ih = H - T - B;
+  const fresh = !SEEN['ch' + key]; SEEN['ch' + key] = 1;
+  const ticks = [0, Math.round(max / 2), max].filter((v, i, a) => a.indexOf(v) === i);
+  const grid = ticks.map(v => { const y = T + ih - v / max * ih; return `<line x1="${L}" x2="${W - R}" y1="${y}" y2="${y}" stroke="var(--line)" stroke-dasharray="3 4"/><text x="${L - 6}" y="${y + 3.5}" text-anchor="end" class="cht">${v}</text>`; }).join('');
+  const every = Math.ceil(pts.length / 8);
+  const xl = (i, x) => (pts.length - 1 - i) % every === 0 ? `<text x="${x}" y="${H - 6}" text-anchor="middle" class="cht">${esc(pts[i].l)}</text>` : '';
+  return `<svg class="chart" ${fresh ? 'data-fresh' : ''} viewBox="0 0 ${W} ${H}" role="img">${grid}${inner({W, H, L, R, T, B, iw, ih, xl})}</svg>`;
+}
+function tipAt(x, y, text, W){
+  const w = Math.max(44, text.length * 6.4 + 16), tx = Math.min(Math.max(x - w / 2, 2), W - w - 2), ty = Math.max(y - 34, 0);
+  return `<g class="ctip"><rect x="${tx}" y="${ty}" width="${w}" height="24" rx="8"/><text x="${tx + w / 2}" y="${ty + 16}" text-anchor="middle">${esc(text)}</text></g>`;
+}
+function barChart(pts, max, key, color){
+  max = Math.max(max, 1);
+  return chartFrame(pts, max, key, f => {
+    const slot = f.iw / pts.length, bw = Math.min(26, slot * .62);
+    return pts.map((p, i) => { const x = f.L + slot * i + slot / 2, h = Math.max(p.v / max * f.ih, p.v ? 4 : 0), y = f.T + f.ih - h;
+      return `<g class="cpt" tabindex="0"><rect x="${x - slot / 2}" y="${f.T}" width="${slot}" height="${f.ih}" fill="transparent"/>
+        <rect class="bar" x="${x - bw / 2}" y="${y}" width="${bw}" height="${h}" rx="${Math.min(6, bw / 2)}" fill="${color}" style="transform-origin:${x}px ${f.T + f.ih}px"/>
+        ${f.xl(i, x)}${tipAt(x, y, p.tip, f.W)}</g>`; }).join('');
+  });
+}
+function areaChart(pts, max, key, color){
+  max = Math.max(max, 1);
+  return chartFrame(pts, max, key, f => {
+    const n = pts.length, xs = i => f.L + (n === 1 ? f.iw / 2 : f.iw * i / (n - 1)), ys = v => f.T + f.ih - v / max * f.ih;
+    const P = pts.map((p, i) => [xs(i), ys(p.v)]);
+    let d = `M${P[0][0]},${P[0][1]}`;
+    for (let i = 1; i < P.length; i++){ const [x0, y0] = P[i - 1], [x1, y1] = P[i], mx = (x0 + x1) / 2; d += ` C${mx},${y0} ${mx},${y1} ${x1},${y1}`; }
+    const id = 'g' + key.replace(/[^a-z0-9]/gi, ''), base = f.T + f.ih;
+    return `<defs><linearGradient id="${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${color}" stop-opacity=".45"/><stop offset="1" stop-color="${color}" stop-opacity=".03"/></linearGradient></defs>
+      <path class="carea" d="${d} L${P[P.length - 1][0]},${base} L${P[0][0]},${base} Z" fill="url(#${id})"/>
+      <path class="cline" d="${d}" fill="none" stroke="${color}" stroke-width="2.5" stroke-linecap="round"/>
+      ${pts.map((p, i) => `<g class="cpt" tabindex="0"><rect x="${P[i][0] - f.iw / n / 2}" y="${f.T}" width="${f.iw / n}" height="${f.ih}" fill="transparent"/><line class="cguide" x1="${P[i][0]}" x2="${P[i][0]}" y1="${f.T}" y2="${base}"/><circle cx="${P[i][0]}" cy="${P[i][1]}" r="4" fill="var(--card)" stroke="${color}" stroke-width="2.5"/>${f.xl(i, P[i][0])}${tipAt(P[i][0], P[i][1], p.tip, f.W)}</g>`).join('')}`;
+  });
+}
+function trend(now, prev, unit){
+  if (now === prev) return `<span class="trend">${ic('redo','width:14px;height:14px')}Same as the week before</span>`;
+  const up = now > prev, d = Math.abs(now - prev);
+  return `<span class="trend ${up ? 'up' : 'down'}">${up ? '↑' : '↓'} ${up ? 'Up' : 'Down'} ${d} ${unit}${d === 1 ? '' : 's'} from the week before</span>`;
+}
+const chartCard = (title, desc, svg, foot) => `<div class="card chcard"><div><div class="cht-t">${title}</div><div class="sub">${desc}</div></div>${svg}${foot ? `<div class="cfoot">${foot}</div>` : ''}</div>`;
+// habit: good days per week for the last 8 weeks (done for build, clean for break)
+function habitWeeks(h, n){
+  const t = hToday(), out = [];
+  for (let w = n - 1; w >= 0; w--){
+    const end = t - w * 7, from = end - 6; let good = 0, tracked = 0;
+    for (let d = from; d <= end; d++){ if (d < h.startDay) continue; tracked++; if (h.kind === 'build' ? h.marks.has(d) : !h.marks.has(d)) good++; }
+    if (tracked || w < 2) out.push({l:shortDate(from), v:good, tracked, tip:`${shortDate(from)}: ${good}/${tracked}`});
+  }
+  return out;
+}
 /* ---------- private habits ----------
    build: tick it off each day; the streak counts days in a row.
    break: nothing to tick; it counts days clean since you started or last slipped. */
@@ -540,6 +598,13 @@ function motionIn(){
     const badge = pb.querySelector('.picon, .pav'); if (badge) animate(badge, {scale:[0, 1], rotate:[-120, 0]}, {type:'spring', stiffness:560, damping:13, delay:.08});
     animate(pb.querySelectorAll('.pt, .ps'), {opacity:[0, 1], y:[10, 0]}, {duration:.28, delay:stagger(.06, {startDelay:.12})});
   }
+  app.querySelectorAll('.chart[data-fresh]').forEach(ch => {
+    const bars = ch.querySelectorAll('.bar');
+    if (bars.length) animate(bars, {scaleY:[0, 1]}, {type:'spring', stiffness:300, damping:20, delay:stagger(.05)});
+    const line = ch.querySelector('.cline');
+    if (line){ animate(line, {pathLength:[0, 1]}, {duration:.9, ease:'easeOut'}); animate(ch.querySelector('.carea'), {opacity:[0, 1]}, {duration:.6, delay:.3});
+      animate(ch.querySelectorAll('circle'), {scale:[0, 1]}, {type:'spring', stiffness:500, damping:15, delay:stagger(.04, {startDelay:.3})}); }
+  });
   const cb = app.querySelector('.celebrate .cbox[data-fresh]');
   if (cb){
     animate(cb.parentNode, {opacity:[0, 1]}, {duration:.25});
@@ -880,7 +945,16 @@ function recapCard(c){
       <button class="btn chainbtn sm" data-a="share" data-v="${c.id}">${ic('share','width:16px;height:16px')}Share to story</button>
       ${fin?`<button class="btn sm" data-a="again" data-v="${c.id}" style="background:var(--hero-chip);color:var(--hero-fg)">${ic('redo','width:16px;height:16px')}Run it back</button>`:''}
     </div>
-  </div>`;
+  </div>${crewChart(c)}`;
+}
+// check-ins per day across the challenge so far (last 14 days at most)
+function crewChart(c){
+  const t0 = today(c), end = Math.min(fullDay(c, t0) ? t0 : t0 - 1, lastDay(c)), from = Math.max(c.startDay, end - 13), pts = [];
+  if (end - c.startDay < 1) return '';
+  let most = 1;
+  for (let d = from; d <= end; d++){ const on = membersOn(c, d), k = on.filter(m => isDone(c, d, m.id)).length; most = Math.max(most, on.length); pts.push({l:dayLabel(d), v:k, tip:`Day ${d - c.startDay + 1}: ${k}/${on.length} in`}); }
+  const full = pts.filter((p, i) => fullDay(c, from + i)).length;
+  return `<div class="crewc" style="${ccVars(c)}">${chartCard('Daily check-ins', `${esc(c.name)} · ${pts.length === 14 ? 'last 14 days' : 'so far'}`, areaChart(pts, most, 'cr' + c.id, 'var(--chain)'), `<span class="trend up">${full} of ${pts.length} days with everyone in</span>`)}</div>`;
 }
 function habitsRecap(){
   const t = hToday();
@@ -890,7 +964,12 @@ function habitsRecap(){
     return `<button class="li" data-a="hstats" data-v="${h.id}" style="text-align:left"><span class="grow" style="font-weight:600">${esc(h.name)}</span>
       <span style="display:grid;grid-template-columns:repeat(7,10px);gap:3px">${habitCells(h, 7)}</span><span class="sub" style="width:70px;text-align:right">${label}</span></button>`;
   }).join('');
-  return `<div class="card" style="gap:0;flex:none"><div class="row" style="gap:6px;color:var(--muted);margin-bottom:10px">${ic('lock','width:14px;height:14px')}<div class="lab">Just for you · this week</div></div>${rows}</div>`;
+  const builds = S.habits.filter(h => h.kind === 'build'), pts = [];
+  for (let d = t - 6; d <= t; d++){ const k = builds.filter(h => h.marks.has(d)).length; pts.push({l:dayLabel(d), v:k, tip:`${shortDate(d)}: ${k}/${builds.length} done`}); }
+  const sum = a => a.reduce((x, p) => x + p.v, 0), wk = sum(pts);
+  let prev = 0; for (let d = t - 13; d <= t - 7; d++) prev += builds.filter(h => h.marks.has(d)).length;
+  const chart = builds.length ? chartCard('Habits done', 'Each day this week', barChart(pts, builds.length, 'hr', 'var(--chain)'), trend(wk, prev, 'habit')) : '';
+  return `${chart}<div class="card" style="gap:0;flex:none"><div class="row" style="gap:6px;color:var(--muted);margin-bottom:10px">${ic('lock','width:14px;height:14px')}<div class="lab">Just for you · this week</div></div>${rows}</div>`;
 }
 function vRecap(){
   const list = U.recapOnly ? S.crews.filter(c => c.id === U.recapOnly) : S.crews;
@@ -979,6 +1058,8 @@ function sheet(){
       <div class="row" style="gap:8px">${b ? tile(st.current, 'Current streak', true) + tile(st.best, 'Best streak') + tile(st.rate + '%', `Last ${st.win} days`)
         : tile(st.current, 'Days clean', true) + tile(st.best, 'Best run') + tile(st.slips, st.slips === 1 ? 'Slip' : 'Slips')}</div>
       <div class="row" style="gap:8px">${b ? tile(st.done, 'Days done') + tile(st.total, 'Days tracked') : tile(st.rate + '%', `Clean, last ${st.win} days`) + tile(st.total, 'Days tracked')}</div>
+      ${(() => { const wk = habitWeeks(h, 8), a = wk[wk.length - 1].v, z = wk[wk.length - 2].v;
+        return chartCard(b ? 'Days done per week' : 'Clean days per week', wk.length === 8 ? 'Last 8 weeks' : 'Since you started', areaChart(wk, 7, 'hs' + h.id, 'var(--chain)'), trend(a, z, 'day')); })()}
       <div class="lab">Last 4 weeks</div>
       <div style="display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px">${habitCells(h, 28)}</div>
       <div class="legend" style="color:var(--muted)">${b ? `<span><span style="width:10px;height:10px;border-radius:3px;background:var(--ink)"></span>Done</span><span><span style="width:10px;height:10px;border-radius:3px;background:var(--line)"></span>Missed</span>`

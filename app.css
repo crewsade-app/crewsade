@@ -186,3 +186,19 @@ input[type=time]{width:auto}
 @media (prefers-reduced-motion:reduce){.pbox.anim,.pbox.anim .picon,.pbox.anim .picon::after{animation:none}}
 /* Motion runs these instead when it loads */
 .motion .sheet,.motion .pbox.anim,.motion .pbox.anim .picon,.motion .celebrate .cbox{animation:none}
+/* charts */
+.chcard{flex:none;gap:10px}
+.cht-t{font-family:var(--display);font-weight:800;font-size:17px;letter-spacing:-.01em}
+.chart{width:100%;height:auto;display:block;overflow:visible}
+.chart .cht{font-size:10px;fill:var(--muted);font-family:Inter,system-ui,sans-serif}
+.chart circle{transform-box:fill-box;transform-origin:center}
+.chart .cpt{outline:none;cursor:pointer}
+.chart .ctip,.chart .cguide{opacity:0;transition:opacity .15s;pointer-events:none}
+.chart .cguide{stroke:var(--muted);stroke-dasharray:2 3}
+.chart .ctip rect{fill:var(--btn)}
+.chart .ctip text{fill:var(--btn-fg);font-size:11px;font-weight:600;font-family:Inter,system-ui,sans-serif}
+.chart .cpt:hover .ctip,.chart .cpt:focus .ctip,.chart .cpt:hover .cguide,.chart .cpt:focus .cguide{opacity:1}
+.chart .cpt:hover .bar,.chart .cpt:focus .bar{filter:brightness(1.12)}
+.cfoot{font-size:13px;font-weight:600}
+.trend{display:inline-flex;gap:6px;align-items:center;color:var(--muted)}
+.trend.up{color:var(--chain-text)}
