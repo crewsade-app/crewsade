@@ -251,7 +251,7 @@ let SEEN = {};
    First view of a screen: links cascade in one by one. Later: only the new day's link animates. */
 function chainSVG(states, o){
   // links drawn like the app icon: same-size ovals, each passing over the link before it at the top and under it at the bottom
-  o = Object.assign({w:314, W:34, sw:0, gap:12, on:'var(--chain)', off:'var(--chain-off)', wait:'var(--wait)', bg:'var(--card)', label:'', key:null}, o||{});
+  o = Object.assign({w:314, W:34, sw:0, gap:12, move:true, on:'var(--chain)', off:'var(--chain-off)', wait:'var(--wait)', bg:'var(--card)', label:'', key:null}, o||{});
   const n = states.length; if (!n) return '';
   const W = o.W, H = +(W * .54).toFixed(1), sw = o.sw || +(W * .14).toFixed(1), step = W * .72, R = H / 2;
   const per = Math.max(1, Math.floor((o.w - W - sw) / step) + 1);
@@ -290,7 +290,7 @@ function chainSVG(states, o){
     const shape = st === 't'
       ? rr(x, y, ` stroke="${o.wait}" stroke-width="${(sw * .5).toFixed(1)}" stroke-dasharray="${sw} ${(sw * .8).toFixed(1)}" style="--p:-${(sw * 1.8 * 4).toFixed(1)}px"`)
       : `<g${tilt}${mask}>${rr(x, y, ` stroke="${col}" stroke-opacity="${op}" stroke-width="${sw}"`)}</g>`;
-    out += `<g class="lk ${anim} ${st === 't' ? 'ghost' : ''}" style="animation-delay:${delay}ms;transform-origin:${x.toFixed(1)}px ${cy.toFixed(1)}px"><g class="${rattle ? 'rt' : ''}" style="animation-delay:${delay + 650}ms;transform-origin:${(x + W).toFixed(1)}px ${cy.toFixed(1)}px">${shape}</g></g>`;
+    out += `<g class="lk ${anim} ${st === 't' ? 'ghost' : ''}" style="animation-delay:${delay}ms;transform-origin:${x.toFixed(1)}px ${cy.toFixed(1)}px"><g class="${rattle ? 'rt' : ''}" style="animation-delay:${delay + 650}ms;transform-origin:${(x + W).toFixed(1)}px ${cy.toFixed(1)}px">${o.move && st !== 't' ? `<g class="wv" style="animation-delay:-${(i * .22).toFixed(2)}s;transform-origin:${cx.toFixed(1)}px ${cy.toFixed(1)}px"><g class="rp" style="animation-delay:${(i * .07 + 1.5).toFixed(2)}s;transform-origin:${cx.toFixed(1)}px ${cy.toFixed(1)}px">${shape}</g></g>` : shape}</g></g>`;
     if (changed && !cascade && st === 'full'){
       const d = delay + 450;
       fx += `<rect class="ring" x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${W}" height="${H}" rx="${R}" fill="none" stroke="${o.on}" stroke-width="${(sw / 1.6).toFixed(1)}" style="animation-delay:${d}ms"/>`;
@@ -955,7 +955,7 @@ function weekStats(c){
 function recapCard(c){
   const fin = finished(c), w = weekStats(c), info = w.info, em = w.early;
   return `<div class="crewc" style="${ccVars(c)}flex:none;background:var(--hero);color:var(--hero-fg);border-radius:28px;padding:22px;display:flex;flex-direction:column;gap:16px;position:relative;overflow:hidden">
-    <div style="position:absolute;right:-70px;top:-6px;width:250px;transform:rotate(-32deg);opacity:.95">${chainSVG(['full','full','full','full'],{w:400, W:84, bg:'var(--hero)', on:'var(--chain-hi)', label:'Chain', key:'deco'+c.id, sway:false})}</div>
+    <div style="position:absolute;right:-70px;top:-6px;width:250px;transform:rotate(-32deg);opacity:.95">${chainSVG(['full','full','full','full'],{w:400, W:84, move:false, bg:'var(--hero)', on:'var(--chain-hi)', label:'Chain', key:'deco'+c.id, sway:false})}</div>
     <div class="lab" style="color:var(--hero-muted);position:relative;padding-right:120px">${fin?'Final recap':'This week'} · ${esc(c.name)}</div>
     <div style="position:relative;margin-top:56px"><div class="h" style="font-size:72px;line-height:.85;font-weight:800;letter-spacing:-.05em">${w.hit}<span style="color:var(--hero-muted)">/${w.slots}</span></div><div style="font-size:15px;font-weight:600;margin-top:6px">check-ins</div></div>
     <div style="position:relative">${chainSVG(w.st,{w:306, W:42, bg:'var(--hero)', on:'var(--chain-hi)', off:'#5E6070', wait:'var(--hero-muted)', label:'This week', key:'recap'+c.id})}</div>

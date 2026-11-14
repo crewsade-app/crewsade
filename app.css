@@ -234,3 +234,10 @@ nav.tabs{touch-action:none;user-select:none;-webkit-user-select:none}
 .tpl.wiggle{animation:wiggle .35s ease-in-out infinite alternate}
 @keyframes wiggle{from{transform:rotate(-1deg)}to{transform:rotate(1deg)}}
 @media (prefers-reduced-motion:reduce){.tpl.wiggle{animation:none}}
+/* chains are always gently moving: a slow wave runs along the links, and every few seconds a tug ripples down the chain */
+.chainv .wv,.chainv .rp{transform-box:view-box}
+.chainv .wv{animation:cwave 3.2s ease-in-out infinite}
+.chainv .rp{animation:ctug 7s ease-in-out infinite}
+@keyframes cwave{0%,100%{transform:translateY(-1.2px) rotate(-2.5deg)}50%{transform:translateY(1.2px) rotate(2.5deg)}}
+@keyframes ctug{0%,82%,100%{transform:none}86%{transform:translateY(-3px) rotate(-6deg)}91%{transform:translateY(1.5px) rotate(4deg)}95%{transform:rotate(-1.5deg)}}
+@media (prefers-reduced-motion:reduce){.chainv .wv,.chainv .rp{animation:none}}
