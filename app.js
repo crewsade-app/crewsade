@@ -305,6 +305,14 @@ function chainSVG(states, o){
    Each link is a rigid piece hinged to the one before it, so the whole chain bends together and stays interlocked.
    Tweak CHAIN_MOTION to change the feel. */
 const CHAIN_MOTION = {
+  style:'corkscrew', // 'corkscrew' (links turn over one after another) or 'wave' (sway plus a tug)
+  // corkscrew
+  roll:.6,         // how fast the whole chain turns, in radians per second
+  twist:.9,        // how far each link turns past its neighbours, in radians
+  twistSpeed:1.8,  // how fast the twist runs down the chain
+  twistGap:.7,     // delay between neighbouring links
+  thinnest:.12,    // how thin a link gets when it's edge-on (1 = never thins)
+  // wave
   sway:3.2,        // degrees each link swings in the slow wave
   period:3.4,      // seconds for one full sway
   wavelength:7,    // links per wave along the chain
@@ -335,10 +343,15 @@ function chainMotion(){
         // angle of this link: slow travelling wave plus a tug that runs down the chain
         const wave = C.sway * Math.sin(2 * Math.PI * (tt / C.period - l.k / C.wavelength));
         const d = (l.k - head) / C.tugWidth, tug = -C.tug * d * Math.exp(-d * d) * Math.min(1, 6 / (6 + l.k));
-        const a = (wave + tug) * Math.min(1, (l.k + 1) / 2);
+        let a = (wave + tug) * Math.min(1, (l.k + 1) / 2), sy = 1;
+        if (C.style === 'corkscrew'){
+          // seen side-on, a link turning around the chain's length just gets thinner and fuller
+          a = 0; const turn = tt * C.roll + C.twist * Math.sin(tt * C.twistSpeed - l.k * C.twistGap), c = Math.cos(turn);
+          sy = Math.sign(c || 1) * Math.max(C.thinnest, Math.abs(c));
+        }
         // hinge: start where the previous link in the row ended up
         const p = rowAt[l.r] || {x:l.px, y:l.py};
-        const m = new DOMMatrix().translate(p.x, p.y).rotate(a).translate(-l.px, -l.py);
+        const m = new DOMMatrix().translate(p.x, p.y).rotate(a).scale(1, sy).translate(-l.px, -l.py);
         M[l.i] = m;
         rowAt[l.r] = {x:p.x + c.step * Math.cos(a * rad), y:p.y + c.step * Math.sin(a * rad)};
         l.g.setAttribute('transform', `matrix(${m.a} ${m.b} ${m.c} ${m.d} ${m.e} ${m.f})`);
