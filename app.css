@@ -234,3 +234,7 @@ nav.tabs{touch-action:none;user-select:none;-webkit-user-select:none}
 .tpl.wiggle{animation:wiggle .35s ease-in-out infinite alternate}
 @keyframes wiggle{from{transform:rotate(-1deg)}to{transform:rotate(1deg)}}
 @media (prefers-reduced-motion:reduce){.tpl.wiggle{animation:none}}
+.agree{display:flex;gap:10px;align-items:flex-start;font-size:14px;color:var(--muted);line-height:1.4;cursor:pointer}
+.agree input{width:20px;height:20px;margin:0;flex:none;accent-color:var(--chain)}
+.agree a{color:var(--link);font-weight:600}
+.sub a{color:inherit}

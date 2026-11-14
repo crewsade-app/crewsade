@@ -825,9 +825,10 @@ function vWelcome(){
     ${demoBar()}
     <form data-f="auth" class="card" style="gap:10px" novalidate>
       <div class="h" style="font-size:19px;font-weight:700">${title}</div>
-      ${a === 'up' || DEMO ? `<label class="lab" for="au-name">Your name</label><input id="au-name" type="text" maxlength="24" autocomplete="given-name" placeholder="First name">` : ''}
-      ${DEMO ? '' : `<label class="lab" for="au-email">Email</label><input id="au-email" type="email" autocomplete="email" placeholder="you@example.com">`}
+      ${a === 'up' || DEMO ? `<label class="lab" for="au-name">Your name</label><input id="au-name" type="text" maxlength="24" autocomplete="given-name" placeholder="First name" value="${esc((U.av||{}).name||'')}">` : ''}
+      ${DEMO ? '' : `<label class="lab" for="au-email">Email</label><input id="au-email" type="email" autocomplete="email" placeholder="you@example.com" value="${esc((U.av||{}).email||'')}">`}
       ${DEMO || a === 'reset' ? '' : `<label class="lab" for="au-pw">Password</label><input id="au-pw" type="password" minlength="6" autocomplete="${a==='up'?'new-password':'current-password'}" placeholder="${a==='up'?'At least 6 characters':'Password'}">`}
+      ${a === 'up' && !DEMO ? `<label class="agree" for="au-age"><input id="au-age" type="checkbox"><span>I'm 13 or older and agree to the <a href="terms.html" target="_blank" rel="noopener">Terms</a> and <a href="privacy.html" target="_blank" rel="noopener">Privacy policy</a>.</span></label>` : ''}
       ${U.authErr ? `<div class="err" role="alert">${esc(U.authErr)}</div>` : ''}
       ${U.authMsg ? `<div class="sub" role="status" style="font-weight:600">${esc(U.authMsg)}</div>` : ''}
       <button class="btn chainbtn" type="submit" ${U.busy?'disabled':''}>${DEMO ? 'Try the demo' : a === 'up' ? (U.preview ? 'Create account and join' : 'Create account') : a === 'in' ? (U.preview ? 'Sign in and join' : 'Sign in') : 'Send reset link'}</button>
@@ -836,7 +837,7 @@ function vWelcome(){
         ${a === 'in' ? `<button type="button" class="linkbtn" data-a="authmode" data-v="reset">Forgot password?</button>` : ''}
       </div>`}
     </form>
-    <a href="privacy.html" class="sub" style="text-align:center">Privacy</a>
+    <div class="sub" style="text-align:center"><a href="terms.html">Terms</a> · <a href="privacy.html">Privacy</a></div>
   </div>`;
 }
 
@@ -1141,7 +1142,7 @@ function vYou(){
       <button class="opt danger" data-a="erase">${ic('trash')}${U.confirm==='erase'?'Tap again to erase everything':'Erase demo data'}</button>` : `
       <button class="opt" data-a="signout">${ic('out')}Sign out</button>
       <button class="opt danger" data-a="delacct">${ic('trash')}${U.confirm==='delacct'?'Tap again: delete account and posts':'Delete account'}</button>`}
-    <a href="privacy.html" class="sub" style="text-align:center">Privacy policy</a>
+    <div class="sub" style="text-align:center"><a href="terms.html">Terms of Use</a> · <a href="privacy.html">Privacy policy</a></div>
   </div>`;
 }
 
@@ -1516,10 +1517,11 @@ app.addEventListener('submit', async e => {
   e.preventDefault(); const f = e.target.dataset.f, val = id => { const el = document.getElementById(id); return el ? el.value.trim() : ''; };
   if (f === 'auth'){
     const name = val('au-name'), email = val('au-email'), pw = (document.getElementById('au-pw') || {}).value || '';
-    U.authErr = ''; U.authMsg = '';
+    U.authErr = ''; U.authMsg = ''; U.av = {name, email};
     if ((U.auth === 'up' || DEMO) && !name){ U.authErr = 'Add your name.'; render(); return; }
     if (!DEMO && !/^\S+@\S+\.\S+$/.test(email)){ U.authErr = 'Enter a valid email.'; render(); return; }
     if (!DEMO && U.auth !== 'reset' && pw.length < 6){ U.authErr = 'Use at least 6 characters for your password.'; render(); return; }
+    if (!DEMO && U.auth === 'up' && !(document.getElementById('au-age') || {}).checked){ U.authErr = 'You need to be 13 or older and agree to the Terms to create an account.'; render(); return; }
     U.busy = true; render();
     try {
       if (U.auth === 'reset'){ await api.resetPassword(email); U.authMsg = 'Check your email for a reset link.'; U.busy = false; render(); return; }
