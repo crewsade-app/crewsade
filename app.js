@@ -22,6 +22,7 @@ const I = {
   cam:'<path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/>',
   heart:'<path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8l1 1.1L12 21l7.8-7.5 1-1.1a5.5 5.5 0 0 0 0-7.8z"/>',
   trash:'<path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/>',
+  edit:'<path d="M4 20h4L19 9l-4-4L4 16v4zM14 6l4 4"/>',
   zap:'<path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/>',
   shield:'<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>',
   link:'<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>',
@@ -193,6 +194,8 @@ const isDone = (c, d, id) => !!(c.log[d] && c.log[d][id]);
 const membersOn = (c, d) => c.members.filter(m => m.joinDay <= d);
 const fullDay = (c, d) => { const ms = membersOn(c, d); return ms.length > 0 && ms.every(m => isDone(c, d, m.id)); };
 const dayNum = c => Math.min(today(c), lastDay(c)) - c.startDay + 1;
+// a crew can't be made shorter than the days it has already run
+const minCrewLen = c => Math.min(365, Math.max(3, today(c) - c.startDay + 1));
 const lastDay = c => c.startDay + c.len - 1;
 const finished = c => today(c) > lastDay(c);
 const doneToday = c => c.members.filter(m => isDone(c, today(c), m.id)).length;
@@ -464,6 +467,7 @@ function demoBackend(){
     async setName(n){ D.me.name = n; saveD(); },
     async setPrefs(p){ D.me.prefs = p; saveD(); },
     async setColor(c, color){ find(c.id).color = color; saveD(); },
+    async editCrew(c, d){ Object.assign(find(c.id), {name:d.name, rule:d.rule, len:d.len, proof:d.proof}); saveD(); },
     async addHabit(name, kind){ D.habits = D.habits || []; D.habits.push({id:uid(), name, kind, startDay:hToday(), marks:[]}); saveD(); },
     async markHabit(h, on){ const x = D.habits.find(y => y.id === h.id), t = hToday(); x.marks = x.marks.filter(d => d !== t); if (on) x.marks.push(t); saveD(); },
     async deleteHabit(h){ D.habits = D.habits.filter(y => y.id !== h.id); saveD(); },
@@ -594,6 +598,7 @@ function supabaseBackend(){
     async setName(n){ fail(await sb.from('crew_profiles').update({name:n}).eq('id', myId())); },
     async setPrefs(p){ fail(await sb.from('crew_profiles').update({notif_prefs:p}).eq('id', myId())); },
     async setColor(c, color){ fail(await sb.rpc('set_crew_color', {p_crew:c.id, p_color:color})); },
+    async editCrew(c, d){ fail(await sb.rpc('update_crew', {p_crew:c.id, p_name:d.name, p_rule:d.rule, p_len:d.len, p_proof:d.proof})); },
     async addHabit(name, kind){ fail(await sb.from('crew_habits').insert({user_id:myId(), name, kind, start_day:dateOf(tzIdx(MY_TZ))})); },
     async markHabit(h, on){ const t = tzIdx(MY_TZ), m = [...h.marks].filter(d => d !== t); if (on) m.push(t);
       fail(await sb.from('crew_habits').update({marks:m.map(dateOf)}).eq('id', h.id)); },
@@ -997,6 +1002,7 @@ function vCrew(){
     ${c.feed.map(f=>post(c,f)).join('')}
     <div class="row" style="justify-content:center;gap:10px;flex-wrap:wrap">
       <button class="chip" data-a="leave" ${U.confirm==='leave'?'style="background:#FDE2D6;color:#B42318"':''}>${ic('out')}${U.confirm==='leave'?'Tap again to leave':'Leave crew'}</button>
+      ${owner?`<button class="chip" data-a="editcrew" data-v="${c.id}">${ic('edit')}Edit</button>`:''}
       ${owner?`<button class="chip" data-a="colorsheet" data-v="${c.id}"><span style="width:14px;height:14px;border-radius:50%;background:var(--chain-hi)"></span>Color</button>`:''}
       ${owner?`<button class="chip" data-a="delcrew" ${U.confirm==='del'?'style="background:#FDE2D6;color:#B42318"':''}>${ic('trash')}${U.confirm==='del'?'Delete for everyone?':'Delete crew'}</button>`:''}
     </div>
@@ -1166,6 +1172,20 @@ function sheet(){
     const c = crewById(s.crew); if (!c){ U.sheet = null; return ''; }
     body = `<div class="h" style="font-size:20px;font-weight:800">Crew color</div><div class="sub">Changes the chain and buttons for everyone in ${esc(c.name)}.</div>
       <div class="swatches" style="justify-content:center;padding:8px 0">${CREW_COLORS.map(k=>`<button class="sw-b ${crewColor(c).hi===k.hi?'on':''}" data-a="setcolor" data-v="${k.hi}" style="background:${k.hi};width:46px;height:46px" aria-label="${k.name}"></button>`).join('')}</div>`;
+  } else if (s.type === 'editcrew'){
+    const c = crewById(s.crew); if (!c){ U.sheet = null; return ''; }
+    const minLen = minCrewLen(c);
+    body = `<div class="row" style="justify-content:space-between;align-items:center"><div class="h" style="font-size:20px;font-weight:800">Edit crew</div><button type="button" class="linkbtn" data-a="closesheet">Cancel</button></div>
+      <form data-f="editcrew" style="display:flex;flex-direction:column;gap:10px">
+        <label for="ecn" class="lab">Name</label><input id="ecn" type="text" maxlength="32" value="${esc(s.name)}" autocomplete="off">
+        <label for="ecr" class="lab">Rule</label><input id="ecr" type="text" maxlength="40" value="${esc(s.rule)}" placeholder="2 to 4 words" autocomplete="off">
+        <label for="ecl" class="lab">Days</label>
+        <div class="row" style="gap:10px"><input id="ecl" type="number" inputmode="numeric" min="${minLen}" max="365" value="${s.len}" class="custom-len" style="font:inherit;font-size:15px;color:var(--ink);background:var(--card);border:1px solid var(--line);border-radius:14px;padding:10px;max-width:120px"><span class="sub">${minLen > 3 ? `At least ${minLen}, since you're on day ${dayNum(c)}` : '3 to 365'}</span></div>
+        <div class="row" style="justify-content:space-between;font-size:15px;font-weight:600"><span>Photo required</span><button type="button" class="toggle" role="switch" aria-checked="${s.proof}" aria-label="Photo required" data-a="eproof"></button></div>
+        <div class="sub">${c.mode === 'weekly' ? '5 of 7 days' : 'Daily + saves'} stays as it is, because it changes how the whole chain is counted. Start a new round to switch it.</div>
+        ${s.err ? `<div class="sub" style="color:#B42318" role="alert">${esc(s.err)}</div>` : ''}
+        <button class="btn chainbtn crewc" style="${ccVars(c)}" type="submit" ${U.busy?'disabled':''}>Save changes</button>
+      </form>`;
   } else if (s.type === 'habit'){
     body = `<div class="row" style="justify-content:space-between;align-items:center"><div class="h" style="font-size:20px;font-weight:800">New private habit</div><button type="button" class="linkbtn" data-a="closesheet">Cancel</button></div>
       <form data-f="habit" style="display:flex;flex-direction:column;gap:12px">
@@ -1412,6 +1432,8 @@ app.addEventListener('click', async e => {
     const s = document.getElementById('setup'); if (s) s.scrollIntoView({behavior:'smooth', block:'start'}); if (t.custom){ const n = document.getElementById('cn'); if (n) n.focus(); } }
   else if (a === 'len'){ if (v === 'custom'){ U.draft.customLen = true; render(); const el = document.getElementById('cl'); if (el){ el.focus(); el.select(); } } else { U.draft.customLen = false; U.draft.len = +v; render(); } }
   else if (a === 'dcolor'){ U.draft.color = v; render(); }
+  else if (a === 'editcrew'){ const x = crewById(v); if (!x) return; U.sheet = {type:'editcrew', crew:v, name:x.name, rule:x.rule, len:x.len, proof:!!x.proof}; render(); }
+  else if (a === 'eproof'){ const sh = U.sheet, g = id => (document.getElementById(id) || {}).value; Object.assign(sh, {name:g('ecn') ?? sh.name, rule:g('ecr') ?? sh.rule, len:+(g('ecl') ?? sh.len), proof:!sh.proof}); render(); }
   else if (a === 'colorsheet'){ U.sheet = {type:'color', crew:v}; render(); }
   else if (a === 'setcolor'){ const x = crewById(U.sheet.crew); U.sheet = null; x.color = v; render(); act(() => api.setColor(x, v)); }
   else if (a === 'closecele'){ await motionOut('.celebrate .cbox', {scale:[1, .8], opacity:[1, 0]}, true); U.celebrate = null; render(); }
@@ -1515,6 +1537,15 @@ app.addEventListener('submit', async e => {
     catch(err){ U.busy = false; U.authErr = errText(err); render(); }
   }
   else if (f === 'name'){ const n = val('nm').slice(0, 24); if (!n) return; await act(() => api.setName(n)); if (S.me.name) enter(); }
+  else if (f === 'editcrew'){
+    const sh = U.sheet, c = crewById(sh.crew); if (!c) return;
+    const d = {name:val('ecn').slice(0, 32), rule:val('ecr').slice(0, 40), len:Math.round(+val('ecl')), proof:sh.proof}, minLen = minCrewLen(c);
+    Object.assign(sh, d, {err:''});
+    if (!d.name){ sh.err = 'Give the crew a name.'; render(); return; }
+    if (!(d.len >= minLen && d.len <= 365)){ sh.err = `Days has to be between ${minLen} and 365.`; render(); return; }
+    U.sheet = null; Object.assign(c, d); render();
+    await act(() => api.editCrew(c, d), 'Crew updated');
+  }
   else if (f === 'habit'){ const n = val('hn').slice(0, 40); if (!n) return; U.sheet = null; U.hname = ''; await act(() => api.addHabit(n, U.hkind), U.hkind === 'build' ? 'Habit added' : 'Counting days clean from today'); }
   else if (f === 'friend'){ const n = val('fn'); if (!n) return; U.addFriend = false; act(() => api.addFriend(crewById(U.crew), n)); }
 });

@@ -353,3 +353,20 @@ begin
     end;
   end loop;
 end $$;
+
+-- the crew's owner can edit its name, rule, length and photo rule (never shorter than the days already run)
+create or replace function public.update_crew(p_crew uuid, p_name text, p_rule text, p_len int, p_proof boolean) returns void
+language plpgsql security definer set search_path = public as $$
+declare c crews; v_ran int;
+begin
+  select * into c from crews where id = p_crew;
+  if not found or c.owner is distinct from auth.uid() then raise exception 'Only the person who started the crew can edit it.'; end if;
+  if char_length(trim(coalesce(p_name, ''))) = 0 then raise exception 'Give the crew a name.'; end if;
+  v_ran := (now() at time zone c.tz)::date - c.start_date + 1;
+  if p_len is null or p_len < greatest(3, least(v_ran, 365)) or p_len > 365 then
+    raise exception 'Days has to be between % and 365.', greatest(3, least(v_ran, 365)); end if;
+  update crews set name = left(trim(p_name), 32), rule = left(trim(coalesce(p_rule, '')), 40), len = p_len, proof = coalesce(p_proof, false)
+  where id = p_crew;
+end $$;
+revoke all on function public.update_crew(uuid, text, text, int, boolean) from public, anon;
+grant execute on function public.update_crew(uuid, text, text, int, boolean) to authenticated;
