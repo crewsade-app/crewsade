@@ -246,39 +246,50 @@ let SEEN = {};
 /* Each link animates only when it is new or its state changed since this screen last drew it.
    First view of a screen: links cascade in one by one. Later: only the new day's link animates. */
 function chainSVG(states, o){
-  o = Object.assign({w:314, W:30, H:18, step:22, sw:4.5, gap:12, on:'var(--chain)', off:'var(--chain-off)', wait:'var(--wait)', label:'', key:null, sway:true}, o||{});
+  o = Object.assign({w:314, W:34, H:20, sw:5.6, gap:14, on:'var(--chain)', off:'var(--chain-off)', wait:'var(--wait)', bg:'var(--card)', label:'', key:null, sway:true}, o||{});
   const n = states.length; if (!n) return '';
-  let per = Math.max(1, Math.floor((o.w - o.W - o.sw)/o.step) + 1); if (per>2 && per%2===0) per--;
-  const rows = Math.ceil(n/per), rowH = o.H + o.gap, pad = o.sw/2 + 6;
-  const vw = (Math.min(n,per)-1)*o.step + o.W + o.sw + 12, vh = rows*rowH - o.gap + o.sw + 12;
+  // flat links alternate with side-on links; each one passes over the link before it and under the next
+  const step = o.W * .74, Lh = o.H * .42, L = o.W * 1.08, lx = x0 => x0 + (o.W - L) / 2;
+  let per = Math.max(1, Math.floor((o.w - o.W - o.sw) / step) + 1); if (per > 2 && per % 2 === 0) per--;
+  const rows = Math.ceil(n / per), rowH = o.H + o.gap, pad = o.sw + 6;
+  const vw = (Math.min(n, per) - 1) * step + o.W + pad * 2 + Math.max(0, L - o.W), vh = rows * rowH - o.gap + pad * 2;
   const prev = o.key ? SEEN[o.key] : null, cascade = !prev;
-  let back='', front='', fx='', order=0;
-  states.forEach((s,i)=>{
-    const r = Math.floor(i/per), k = i%per;
-    const x = k*o.step + pad, y = r*rowH + pad, cx = x+o.W/2, cy = y+o.H/2;
-    const changed = cascade || prev[i] !== s;
-    let col = o.on, op = 1, extra = '', tr = '';
-    if (s==='saved') op = .45;
-    else if (s==='paused'){ col = o.off; tr = ` transform="rotate(${k%2?14:-14} ${cx} ${cy}) translate(0 ${k%2?3:-3})"`; }
-    else if (s==='t'){ col = o.wait; extra = ` stroke-dasharray="${o.sw} ${o.sw*.9}" style="--p:-${(o.sw*1.9*4).toFixed(1)}px"`; }
+  let out = '', fx = '', order = 0;
+  const added = [];
+  states.forEach((st, i) => { if (!cascade && prev[i] !== st) added.push(i); });
+  states.forEach((st, i) => {
+    const r = Math.floor(i / per), k = i % per, flat = k % 2 === 0;
+    const x = k * step + pad + Math.max(0, L - o.W) / 2, y = r * rowH + pad, cx = x + o.W / 2, cy = y + o.H / 2;
+    const changed = cascade || prev[i] !== st;
+    let col = o.on, op = 1, tr = '';
+    if (st === 'saved') op = .42;
+    else if (st === 'paused'){ col = o.off; tr = ` transform="rotate(${k % 2 ? 16 : -16} ${cx} ${cy}) translate(0 ${k % 2 ? 4 : -4})"`; }
     let anim = '', delay = 0;
-    if (changed){ anim = {full:'a-forge', saved:'a-fade', paused:'a-snap', t:'a-fade'}[s]; delay = cascade ? i*55 : 150 + (order++)*140; }
-    const swayOn = o.sway && (s==='full'||s==='saved');
-    const shape = k%2===0
-      ? `<rect x="${x}" y="${y}" width="${o.W}" height="${o.H}" rx="${o.H/2}" fill="none" stroke="${col}" stroke-width="${o.sw}" opacity="${op}"${extra}${tr}/>`
-      : (()=>{ const bh = o.sw*1.5; return s==='t'
-          ? `<rect x="${x}" y="${cy-bh/2}" width="${o.W}" height="${bh}" rx="${bh/2}" fill="none" stroke="${col}" stroke-width="${Math.max(1.5,o.sw/2.5)}"${tr}/>`
-          : `<rect x="${x}" y="${cy-bh/2}" width="${o.W}" height="${bh}" rx="${bh/2}" fill="${col}" opacity="${op}"${tr}/>`; })();
-    const g = `<g class="lk ${anim} ${s==='t'?'ghost':''}" style="animation-delay:${delay}ms"><g class="${swayOn?'sw':''}" style="animation-delay:-${(i*0.18).toFixed(2)}s">${shape}</g></g>`;
-    if (k%2===0) back += g; else front += g;
-    if (changed && !cascade && s==='full'){
-      const d = delay + 250;
-      fx += `<rect class="ring" x="${x}" y="${y}" width="${o.W}" height="${o.H}" rx="${o.H/2}" fill="none" stroke="${o.on}" stroke-width="${o.sw/1.5}" style="animation-delay:${d}ms"/>`;
-      for (let j=0;j<8;j++){ const a = j/8*Math.PI*2, dist = o.W*.9; fx += `<circle class="spk" cx="${cx}" cy="${cy}" r="${Math.max(1.2,o.sw/2.2)}" fill="${o.on}" style="--dx:${(Math.cos(a)*dist).toFixed(1)}px;--dy:${(Math.sin(a)*dist*.7).toFixed(1)}px;animation-delay:${d}ms"/>`; }
+    if (changed){ anim = cascade ? 'a-drop' : st === 'paused' ? 'a-snap' : st === 't' ? 'a-fade' : 'a-hook'; delay = cascade ? i * 45 : 120 + (order++) * 160; }
+    // the link before a newly hooked one rattles as it takes the weight
+    const rattle = !cascade && added.includes(i + 1) && states[i + 1] === 'full' && (st === 'full' || st === 'saved');
+    let shape;
+    if (st === 't'){
+      shape = flat ? `<rect x="${x}" y="${y}" width="${o.W}" height="${o.H}" rx="${o.H / 2}" fill="none" stroke="${o.wait}" stroke-width="${o.sw * .55}" stroke-dasharray="${o.sw} ${o.sw * .8}" style="--p:-${(o.sw * 1.8 * 4).toFixed(1)}px"/>`
+        : `<rect x="${lx(x)}" y="${cy - Lh / 2}" width="${L}" height="${Lh}" rx="${Lh / 2}" fill="none" stroke="${o.wait}" stroke-width="${Math.max(1.5, o.sw * .4)}" stroke-dasharray="${o.sw * .8} ${o.sw * .7}" style="--p:-${(o.sw * 1.5 * 4).toFixed(1)}px"/>`;
+    } else if (flat){
+      shape = `<g${tr} opacity="${op}"><rect x="${x}" y="${y}" width="${o.W}" height="${o.H}" rx="${o.H / 2}" fill="none" stroke="${o.bg}" stroke-width="${o.sw * 2.1}"/>`
+        + `<rect x="${x}" y="${y}" width="${o.W}" height="${o.H}" rx="${o.H / 2}" fill="none" stroke="${col}" stroke-width="${o.sw}"/>`
+        + `<rect x="${x}" y="${y}" width="${o.W}" height="${o.H}" rx="${o.H / 2}" fill="none" stroke="#fff" stroke-opacity=".28" stroke-width="${o.sw * .28}" stroke-dasharray="${o.W * .9} ${o.W * 9}" stroke-dashoffset="${-o.H * .3}"/></g>`;
+    } else {
+      shape = `<g${tr} opacity="${op}"><rect x="${lx(x)}" y="${cy - Lh / 2}" width="${L}" height="${Lh}" rx="${Lh / 2}" fill="${col}" stroke="${o.bg}" stroke-width="${o.sw * .7}" paint-order="stroke"/>`
+        + `<rect x="${lx(x) + Lh * .5}" y="${cy - Lh * .3}" width="${L - Lh}" height="${Lh * .22}" rx="${Lh * .11}" fill="#fff" fill-opacity=".38"/></g>`;
+    }
+    const swayOn = o.sway && (st === 'full' || st === 'saved');
+    out += `<g class="lk ${anim} ${st === 't' ? 'ghost' : ''}" style="animation-delay:${delay}ms"><g class="${rattle ? 'rt' : ''}" style="animation-delay:${delay + 600}ms"><g class="${swayOn ? 'sw' : ''}" style="animation-delay:-${(i * .18).toFixed(2)}s">${shape}</g></g></g>`;
+    if (changed && !cascade && st === 'full'){
+      const d = delay + 420;
+      fx += `<rect class="ring" x="${x}" y="${flat ? y : cy - Lh / 2}" width="${o.W}" height="${flat ? o.H : Lh}" rx="${flat ? o.H / 2 : Lh / 2}" fill="none" stroke="${o.on}" stroke-width="${o.sw / 1.5}" style="animation-delay:${d}ms"/>`;
+      for (let j = 0; j < 8; j++){ const a = j / 8 * Math.PI * 2, dist = o.W * .9; fx += `<circle class="spk" cx="${cx}" cy="${cy}" r="${Math.max(1.2, o.sw / 2.4)}" fill="${o.on}" style="--dx:${(Math.cos(a) * dist).toFixed(1)}px;--dy:${(Math.sin(a) * dist * .7).toFixed(1)}px;animation-delay:${d}ms"/>`; }
     }
   });
   if (o.key) SEEN[o.key] = states.slice();
-  return `<svg class="chainv" viewBox="0 0 ${vw} ${vh}" style="max-width:${vw}px" role="img" aria-label="${esc(o.label||'Chain progress')}">${back}${front}${fx}</svg>`;
+  return `<svg class="chainv" viewBox="0 0 ${vw.toFixed(1)} ${vh.toFixed(1)}" style="max-width:${vw.toFixed(0)}px" role="img" aria-label="${esc(o.label || 'Chain progress')}">${out}${fx}</svg>`;
 }
 
 /* ---------- photos ---------- */
@@ -631,7 +642,7 @@ function popView(){
     ${badge}
     <div class="pt">${esc(p.title)}</div>
     ${p.sub ? `<div class="ps">${esc(p.sub)}</div>` : ''}
-    ${p.chain ? `<div style="width:100%">${chainSVG(Array(Math.min(p.chain, 7)).fill('full'), {w:220, W:26, H:16, step:19, sw:4, on:'var(--chain-hi)', label:p.title, key:'pop' + p.id})}</div>` : ''}
+    ${p.chain ? `<div style="width:100%">${chainSVG(Array(Math.min(p.chain, 7)).fill('full'), {w:220, W:28, H:17, sw:4.6, bg:'var(--hero)', on:'var(--chain-hi)', label:p.title, key:'pop' + p.id})}</div>` : ''}
     ${more}
   </div></div>`;
 }
@@ -758,7 +769,7 @@ function crewCard(c){
         <span class="grow"><span class="h" style="display:block;font-size:21px;font-weight:700;letter-spacing:-.01em">${esc(c.name)}</span><span class="sub">${fin?'Finished':`Day ${dayNum(c)} of ${c.len}`}</span></span>
         <span class="pill">${ic('rings')}${info.chain}</span>
       </span>
-      ${chainSVG(chainStates(c, info), {w:318, W:22, H:13, step:16, sw:3.6, gap:9, key:'home'+c.id, label:info.chain+' day chain'})}
+      ${chainSVG(chainStates(c, info), {w:318, W:26, H:16, sw:4.6, gap:12, key:'home'+c.id, label:info.chain+' day chain'})}
       <span class="row" style="flex-wrap:wrap">${c.members.map(m=>av(m,'',isDone(c,today(c),m.id),!fin && !isDone(c,today(c),m.id))).join('')}</span>
     </button>
     ${foot}
@@ -846,7 +857,7 @@ function vCrew(){
         <div style="font-size:15px;font-weight:600">day chain</div>
         <div style="margin-left:auto;font-size:13px;color:var(--hero-muted)">Best ${info.best}</div>
       </div>
-      ${chainSVG(chainStates(c, info), {w:314, on:'var(--chain-hi)', off:'#5E6070', wait:'var(--hero-muted)', key:'crew'+c.id, label:info.chain+' day chain, day '+dayNum(c)+' of '+c.len})}
+      ${chainSVG(chainStates(c, info), {w:314, W:34, H:20, sw:5.6, bg:'var(--hero)', on:'var(--chain-hi)', off:'#5E6070', wait:'var(--hero-muted)', key:'crew'+c.id, label:info.chain+' day chain, day '+dayNum(c)+' of '+c.len})}
       <div class="legend" style="color:var(--hero-muted)"><span><svg width="16" height="10" aria-hidden="true"><rect x="1.5" y="1.5" width="13" height="7" rx="3.5" fill="none" stroke="var(--chain-hi)" stroke-width="3"/></svg>Linked</span><span><svg width="16" height="10" aria-hidden="true"><rect x="1.5" y="1.5" width="13" height="7" rx="3.5" fill="none" stroke="var(--chain-hi)" stroke-width="3" opacity=".45"/></svg>Saved</span><span><svg width="16" height="10" aria-hidden="true"><rect x="1.5" y="1.5" width="13" height="7" rx="3.5" fill="none" stroke="#5E6070" stroke-width="3" transform="rotate(-14 8 5)"/></svg>Broken</span></div>
       <div class="row" style="gap:8px;flex-wrap:wrap;font-size:13px;color:var(--hero-muted)">
         <span>${fin?'Done':`Day ${dayNum(c)} of ${c.len}`}</span><span>·</span><span>${status}${weekly}</span>
@@ -931,10 +942,10 @@ function weekStats(c){
 function recapCard(c){
   const fin = finished(c), w = weekStats(c), info = w.info, em = w.early;
   return `<div class="crewc" style="${ccVars(c)}flex:none;background:var(--hero);color:var(--hero-fg);border-radius:28px;padding:22px;display:flex;flex-direction:column;gap:16px;position:relative;overflow:hidden">
-    <div style="position:absolute;right:-70px;top:-6px;width:250px;transform:rotate(-32deg);opacity:.95">${chainSVG(['full','full','full','full'],{w:400, W:84, H:48, step:62, sw:12, on:'var(--chain-hi)', label:'Chain', key:'deco'+c.id, sway:false})}</div>
+    <div style="position:absolute;right:-70px;top:-6px;width:250px;transform:rotate(-32deg);opacity:.95">${chainSVG(['full','full','full','full'],{w:400, W:84, H:48, sw:12, bg:'var(--hero)', on:'var(--chain-hi)', label:'Chain', key:'deco'+c.id, sway:false})}</div>
     <div class="lab" style="color:var(--hero-muted);position:relative;padding-right:120px">${fin?'Final recap':'This week'} · ${esc(c.name)}</div>
     <div style="position:relative;margin-top:56px"><div class="h" style="font-size:72px;line-height:.85;font-weight:800;letter-spacing:-.05em">${w.hit}<span style="color:var(--hero-muted)">/${w.slots}</span></div><div style="font-size:15px;font-weight:600;margin-top:6px">check-ins</div></div>
-    <div style="position:relative">${chainSVG(w.st,{w:306, W:36, H:22, step:27, sw:5.5, on:'var(--chain-hi)', off:'#5E6070', wait:'var(--hero-muted)', label:'This week', key:'recap'+c.id})}</div>
+    <div style="position:relative">${chainSVG(w.st,{w:306, W:36, H:22, sw:5.6, bg:'var(--hero)', on:'var(--chain-hi)', off:'#5E6070', wait:'var(--hero-muted)', label:'This week', key:'recap'+c.id})}</div>
     <div class="row" style="gap:10px">
       <div style="background:var(--hero-chip);border-radius:16px;padding:12px;flex:1"><div class="h" style="font-size:26px;font-weight:800;color:var(--chain-hi)">${info.chain}</div><div style="font-size:12px;color:var(--hero-muted)">Chain</div></div>
       <div style="background:var(--hero-chip);border-radius:16px;padding:12px;flex:1"><div class="h" style="font-size:26px;font-weight:800">${info.best}</div><div style="font-size:12px;color:var(--hero-muted)">Best</div></div>
@@ -1085,7 +1096,7 @@ function celebrateView(){
     <div class="big">${esc(k.big)}</div>
     <div class="h" style="font-size:24px;font-weight:800;letter-spacing:-.02em">${esc(k.title)}</div>
     <div style="font-size:14px;color:var(--hero-muted)">${esc(k.sub)}</div>
-    <div style="width:100%">${chainSVG(Array(n).fill('full'), {w:300, W:30, H:18, step:22, sw:4.5, on:'var(--chain-hi)', label:k.title, key:'cele'+(k.id || (k.id = Date.now()))})}</div>
+    <div style="width:100%">${chainSVG(Array(n).fill('full'), {w:300, W:32, H:19, sw:5, bg:'var(--hero)', on:'var(--chain-hi)', label:k.title, key:'cele'+(k.id || (k.id = Date.now()))})}</div>
     <div class="row" style="gap:8px;width:100%">
       ${k.crew ? `<button class="btn sm" style="background:var(--hero-chip);color:var(--hero-fg)" data-a="share" data-v="${k.crew}">${ic('share','width:16px;height:16px')}Share</button>` : ''}
       <button class="btn chainbtn sm" data-a="closecele">Keep going</button>

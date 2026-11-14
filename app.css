@@ -217,3 +217,11 @@ nav.tabs{touch-action:none;user-select:none;-webkit-user-select:none}
 /* pop-ups are modal: a light scrim catches every tap and closes the pop-up */
 .popwrap{pointer-events:auto;background:rgba(10,10,14,.18);cursor:pointer}
 .pbox{pointer-events:none}
+/* chain v2: each new link swings in from its hook and locks; the one before it rattles */
+.chainv .rt{transform-box:fill-box;transform-origin:100% 50%;animation:rattle .55s ease-in-out both}
+.chainv .a-hook{transform-origin:0% 50%;animation:hook .95s cubic-bezier(.25,1.35,.45,1) both}
+.chainv .a-drop{animation:drop .5s cubic-bezier(.3,1.5,.5,1) both}
+@keyframes hook{0%{opacity:0;transform:translate(-40%,-140%) rotate(-80deg)}40%{opacity:1;transform:translate(0,0) rotate(22deg)}62%{transform:rotate(-10deg)}80%{transform:rotate(4deg)}100%{opacity:1;transform:none}}
+@keyframes rattle{0%,100%{transform:none}25%{transform:rotate(-7deg)}55%{transform:rotate(5deg)}80%{transform:rotate(-2deg)}}
+@keyframes drop{0%{opacity:0;transform:translateY(-16px) rotate(-24deg) scale(.7)}100%{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.chainv .a-hook,.chainv .a-drop,.chainv .rt,.chainv .sw{animation:none}}
