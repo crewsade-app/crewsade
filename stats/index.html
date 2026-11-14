@@ -1,0 +1,411 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Crews Stats</title>
+<link rel="icon" href="../icon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=Inter:wght@400;500;600;700&display=swap">
+<style>
+:root{
+  --bg:#F2F2F5; --card:#FFFFFF; --ink:#141418; --muted:#5E6070; --soft:#3A3C48; --line:#E4E5EC; --grid:#EEEEF3; --chip:#ECECF1;
+  --btn:#141418; --btn-fg:#FFFFFF; --accent:#B0105C; --tint:#FCE4EF;
+  --s1:#D6146F; --s2:#2a78d6; --neutral:#6B6E80;
+  --good:#0F7B3E; --warn:#B45309;
+  --display:'Bricolage Grotesque',Inter,system-ui,sans-serif; --body:Inter,system-ui,-apple-system,sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0E0F13; --card:#1B1C22; --ink:#F2F2F5; --muted:#A0A3B1; --soft:#C9CBD6; --line:#2A2C35; --grid:#24262E; --chip:#24262E;
+  --btn:#F2F2F5; --btn-fg:#141418; --accent:#FF7DB8; --tint:#3A1427;
+  --s1:#E8247F; --s2:#3987e5; --neutral:#8E91A3;
+  --good:#4ADE80; --warn:#FBBF24; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0E0F13; --card:#1B1C22; --ink:#F2F2F5; --muted:#A0A3B1; --soft:#C9CBD6; --line:#2A2C35; --grid:#24262E; --chip:#24262E;
+  --btn:#F2F2F5; --btn-fg:#141418; --accent:#FF7DB8; --tint:#3A1427;
+  --s1:#E8247F; --s2:#3987e5; --neutral:#8E91A3;
+  --good:#4ADE80; --warn:#FBBF24; color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 var(--body);-webkit-font-smoothing:antialiased}
+button,input,select{font:inherit;color:inherit}
+.wrap{max-width:1180px;margin:0 auto;padding:20px 20px 60px}
+.hide{display:none!important}
+header{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:0 0 20px}
+header h1{font-family:var(--display);font-weight:800;font-size:28px;letter-spacing:-.03em;margin:0;flex:1;min-width:180px;display:flex;align-items:center;gap:10px}
+header h1 img{width:30px;height:30px;border-radius:8px}
+.seg{display:inline-flex;background:var(--chip);border-radius:12px;padding:3px}
+.seg button{border:0;background:none;border-radius:9px;padding:7px 12px;font-weight:600;font-size:13px;color:var(--muted);cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--card);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.08)}
+.b{border:1px solid var(--line);background:var(--card);border-radius:12px;padding:8px 13px;font-weight:600;font-size:13px;cursor:pointer}
+.b.dark{background:var(--btn);color:var(--btn-fg);border-color:var(--btn)}
+.updated{font-size:12px;color:var(--muted);width:100%;margin-top:-6px}
+h2{font-family:var(--display);font-weight:800;font-size:21px;letter-spacing:-.02em;margin:34px 0 12px}
+h2 small{font-family:var(--body);font-weight:500;font-size:13px;color:var(--muted);letter-spacing:0;margin-left:8px}
+.tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px}
+.tile{background:var(--card);border-radius:18px;padding:14px 16px}
+.tile .k{font-size:12.5px;font-weight:600;color:var(--muted)}
+.tile .v{font-family:var(--display);font-weight:800;font-size:32px;letter-spacing:-.03em;line-height:1.1;margin:4px 0 2px;font-variant-numeric:tabular-nums}
+.tile .d{font-size:12.5px;color:var(--muted)}
+.tile .d b{color:var(--ink);font-weight:600}
+.meter{height:6px;background:var(--grid);border-radius:99px;margin:8px 0 4px;overflow:hidden}
+.meter i{display:block;height:100%;background:var(--s1);border-radius:99px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:10px}
+.card{background:var(--card);border-radius:20px;padding:16px 18px;min-width:0}
+.card h3{font-size:14px;font-weight:700;margin:0 0 2px}
+.card .note{font-size:12.5px;color:var(--muted);margin:0 0 10px}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12.5px;color:var(--soft);margin:0 0 6px}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend i{width:10px;height:10px;border-radius:3px;display:inline-block}
+.chart{position:relative}
+.chart svg{display:block;width:100%;height:auto;overflow:visible}
+.chart .axis{font-size:11px;fill:var(--muted);font-variant-numeric:tabular-nums}
+.chart .gl{stroke:var(--grid);stroke-width:1}
+.chart .base{stroke:var(--line);stroke-width:1}
+.chart .hit{fill:transparent;cursor:default}
+.chart .hit:hover{fill:var(--ink);fill-opacity:.05}
+.tip{position:absolute;pointer-events:none;background:var(--card);color:var(--ink);border:1px solid var(--line);box-shadow:0 8px 24px -8px rgba(0,0,0,.25);border-radius:12px;padding:8px 10px;font-size:12.5px;white-space:nowrap;transform:translate(-50%,-100%);z-index:5}
+.tip b{display:block;font-size:12px;color:var(--muted);font-weight:600;margin-bottom:3px}
+.tip .r{display:flex;align-items:center;gap:6px;justify-content:space-between}
+.tip .r span{display:inline-flex;align-items:center;gap:6px}
+.tip i{width:8px;height:8px;border-radius:2px;display:inline-block}
+details{margin-top:8px}
+summary{font-size:12.5px;color:var(--muted);cursor:pointer}
+table{width:100%;border-collapse:collapse;font-size:13.5px;font-variant-numeric:tabular-nums}
+th{text-align:left;font-size:12px;font-weight:600;color:var(--muted);padding:6px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:8px;border-bottom:1px solid var(--grid)}
+th.n,td.n{text-align:right}
+tr:last-child td{border-bottom:0}
+.tscroll{overflow-x:auto}
+.inbar{display:flex;align-items:center;gap:8px}
+.inbar i{height:8px;border-radius:0 4px 4px 0;background:var(--s1);display:inline-block;min-width:2px}
+.hbar{display:grid;grid-template-columns:minmax(80px,auto) 1fr auto;gap:8px 10px;align-items:center;font-size:13.5px}
+.hbar .t{height:10px;background:var(--grid);border-radius:0 5px 5px 0;overflow:hidden}
+.hbar .t i{display:block;height:100%;background:var(--neutral);border-radius:0 5px 5px 0}
+.hbar .c{font-variant-numeric:tabular-nums;color:var(--soft);text-align:right}
+.links .row{display:flex;gap:8px;align-items:center;margin:0 0 8px}
+.links .row b{width:84px;font-size:13px;flex:none}
+.links input{flex:1;min-width:0;border:1px solid var(--line);background:var(--bg);border-radius:10px;padding:8px 10px;font:12.5px ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--soft)}
+.builder{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0 8px}
+.builder select,.builder input.c{border:1px solid var(--line);background:var(--bg);border-radius:10px;padding:8px 10px;font-size:13px}
+.empty{color:var(--muted);font-size:13.5px;padding:14px 0}
+
+/* sign-in */
+.gate{max-width:380px;margin:12vh auto 0;background:var(--card);border-radius:24px;padding:26px}
+.gate h1{font-family:var(--display);font-weight:800;font-size:26px;letter-spacing:-.02em;margin:0 0 4px}
+.gate p{color:var(--muted);margin:0 0 18px;font-size:14px}
+.gate input{width:100%;border:1px solid var(--line);background:var(--bg);border-radius:12px;padding:12px;margin:0 0 10px;font-size:15px}
+.gate .b{width:100%;padding:12px;font-size:15px}
+.gate .err{color:#C2185B;font-size:13.5px;font-weight:600;min-height:1em;margin:0 0 10px}
+.gate code{display:block;background:var(--bg);border-radius:10px;padding:10px;font-size:12px;white-space:pre-wrap;word-break:break-all;margin:10px 0}
+
+@media (max-width:900px){.grid2,.grid3{grid-template-columns:1fr}}
+@media (max-width:420px){.wrap{padding:16px 16px 48px}.tile .v{font-size:27px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <!-- sign in -->
+  <div class="gate hide" id="gate">
+    <h1>Crews stats</h1>
+    <p>Sign in with your Cadence Crews account.</p>
+    <form id="login">
+      <input id="em" type="email" placeholder="Email" autocomplete="email" required>
+      <input id="pw" type="password" placeholder="Password" autocomplete="current-password" required>
+      <div class="err" id="lerr" role="alert"></div>
+      <button class="b dark" type="submit">Sign in</button>
+    </form>
+  </div>
+  <div class="gate hide" id="noadmin">
+    <h1>Not an admin yet</h1>
+    <p>You're signed in, but this account isn't on the admin list. In Supabase, open SQL Editor and run:</p>
+    <code id="adminsql"></code>
+    <button class="b" id="out2" type="button">Sign out</button>
+  </div>
+  <div class="gate hide" id="nosetup">
+    <h1>Almost there</h1>
+    <p>The stats functions aren't in the database yet. Run <b>supabase/waitlist.sql</b> in the Supabase SQL Editor, then reload.</p>
+  </div>
+
+  <!-- dashboard -->
+  <div id="dash" class="hide">
+    <header>
+      <h1><img src="../icon-180.png" alt="">Crews stats</h1>
+      <div class="seg" id="range" role="group" aria-label="Days shown">
+        <button type="button" data-d="14">14 days</button><button type="button" data-d="30" aria-pressed="true">30 days</button><button type="button" data-d="90">90 days</button>
+      </div>
+      <button class="b" id="refresh" type="button">Refresh</button>
+      <button class="b" id="csv" type="button">Download waitlist</button>
+      <button class="b" id="out" type="button">Sign out</button>
+      <div class="updated" id="updated"></div>
+    </header>
+
+    <h2>Waitlist <small>target: 300 to 500 crews of 3+ by 29 Dec</small></h2>
+    <div class="tiles" id="wl-tiles"></div>
+    <div class="grid2">
+      <div class="card">
+        <h3>Sign-ups per day</h3>
+        <p class="note">People who joined the waitlist, split by how they joined.</p>
+        <div class="legend"><span><i style="background:var(--s1)"></i>Started a crew</span><span><i style="background:var(--s2)"></i>Joined a friend's crew</span></div>
+        <div class="chart" id="c-signups"></div>
+        <details><summary>Show as table</summary><div class="tscroll" id="t-signups"></div></details>
+      </div>
+      <div class="card">
+        <h3>Landing page visits per day</h3>
+        <p class="note">One per browser visit, including visits on friends' links.</p>
+        <div class="chart" id="c-visits"></div>
+        <details><summary>Show as table</summary><div class="tscroll" id="t-visits"></div></details>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:10px">
+      <h3>Where crews come from</h3>
+      <p class="note">Each crew counts toward the source its starter came from (UTM tag, else the site that linked to the page). Friends who join count toward the same crew. All time.</p>
+      <div class="tscroll" id="t-sources"></div>
+    </div>
+
+    <div class="grid3">
+      <div class="card"><h3>Top campaigns</h3><p class="note">utm_campaign, e.g. one per video.</p><div id="t-campaigns"></div></div>
+      <div class="card"><h3>How did you hear about us?</h3><p class="note">What people picked on the form.</p><div id="h-heard"></div></div>
+      <div class="card"><h3>Crew size</h3><p class="note">Waitlist crews by number of people.</p><div id="h-sizes"></div></div>
+    </div>
+
+    <h2>App <small>the web app today, the iPhone app after launch</small></h2>
+    <div class="tiles" id="app-tiles"></div>
+    <div class="grid2">
+      <div class="card">
+        <h3>People checking in per day</h3>
+        <p class="note">Distinct people with at least one check-in.</p>
+        <div class="chart" id="c-active"></div>
+        <details><summary>Show as table</summary><div class="tscroll" id="t-active"></div></details>
+      </div>
+      <div class="card">
+        <h3>New app accounts per day</h3>
+        <p class="note">Accounts created in the app.</p>
+        <div class="chart" id="c-users"></div>
+        <details><summary>Show as table</summary><div class="tscroll" id="t-users"></div></details>
+      </div>
+    </div>
+
+    <h2>Your links</h2>
+    <div class="card links">
+      <p class="note">Use these so each platform shows up separately above. Put the short one in each bio; give each video its own campaign name to see which ones fill the list.</p>
+      <div id="links"></div>
+      <div class="builder">
+        <select id="b-src"><option>tiktok</option><option>instagram</option><option>youtube</option><option>campus</option><option>creator</option></select>
+        <input class="c" id="b-camp" placeholder="campaign, e.g. day9" maxlength="40">
+        <input class="c" id="b-cont" placeholder="content (optional)" maxlength="40">
+      </div>
+      <div class="row"><b>Built link</b><input id="b-out" readonly><button class="b" type="button" data-copy="b-out">Copy</button></div>
+    </div>
+  </div>
+</div>
+
+<script src="../config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script>
+(function(){
+  const CFG = window.CREWS_CONFIG || {};
+  const $ = id => document.getElementById(id);
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const fmt = n => (n == null ? 0 : +n).toLocaleString();
+  const pct = (a, b) => b ? Math.round(a / b * 100) + '%' : 'n/a';
+  const show = id => ['gate', 'noadmin', 'nosetup', 'dash'].forEach(x => $(x).classList.toggle('hide', x !== id));
+  if (!CFG.supabaseUrl || !CFG.supabaseKey) { show('nosetup'); $('nosetup').querySelector('p').textContent = 'Fill in config.js with your Supabase address and key first.'; return; }
+  const sb = supabase.createClient(CFG.supabaseUrl, CFG.supabaseKey);
+  const TZ = (Intl.DateTimeFormat().resolvedOptions().timeZone) || 'UTC';
+  let days = 30;
+  try { days = +localStorage.getItem('crews_stats_days') || 30; } catch (e) {}
+
+  // ---------- sign in ----------
+  async function start(){
+    const { data } = await sb.auth.getSession();
+    if (!data.session) return show('gate');
+    load();
+  }
+  $('login').addEventListener('submit', async e => {
+    e.preventDefault(); $('lerr').textContent = '';
+    const { error } = await sb.auth.signInWithPassword({email: $('em').value.trim(), password: $('pw').value});
+    if (error) { $('lerr').textContent = error.message; return; }
+    load();
+  });
+  const signOut = async () => { await sb.auth.signOut(); show('gate'); };
+  $('out').onclick = signOut; $('out2').onclick = signOut;
+
+  // ---------- load ----------
+  let last = null;
+  async function load(){
+    $('refresh').disabled = true;
+    const { data, error } = await sb.rpc('crews_admin_stats', {p_days: days, p_tz: TZ});
+    $('refresh').disabled = false;
+    if (error) {
+      if (/not allowed/i.test(error.message)) {
+        const { data: u } = await sb.auth.getUser();
+        $('adminsql').textContent = `insert into public.crew_admins (user_id)\nvalues ('${u && u.user ? u.user.id : 'your-user-id'}')\non conflict do nothing;`;
+        return show('noadmin');
+      }
+      if (/function|schema cache|does not exist/i.test(error.message)) return show('nosetup');
+      show('dash'); $('updated').textContent = 'Could not load: ' + error.message; return;
+    }
+    last = data; show('dash'); render(data);
+  }
+  $('refresh').onclick = load;
+  $('range').querySelectorAll('button').forEach(b => {
+    b.setAttribute('aria-pressed', +b.dataset.d === days ? 'true' : 'false');
+    b.onclick = () => {
+      days = +b.dataset.d; try { localStorage.setItem('crews_stats_days', days); } catch (e) {}
+      $('range').querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x === b ? 'true' : 'false'));
+      load();
+    };
+  });
+
+  // ---------- render ----------
+  function tile(k, v, d, meter){
+    return `<div class="tile"><div class="k">${esc(k)}</div><div class="v">${v}</div>${meter != null ? `<div class="meter"><i style="width:${Math.min(100, meter)}%"></i></div>` : ''}<div class="d">${d || '&nbsp;'}</div></div>`;
+  }
+  function render(d){
+    const w = d.waitlist, a = d.app;
+    $('updated').textContent = `Updated ${new Date(d.generated_at).toLocaleString()} · days counted in ${d.tz}`;
+    const visits7 = w.visits_7d, crews7 = d.waitlist_daily.slice(-7).reduce((s, x) => s + x.crews, 0);
+    $('wl-tiles').innerHTML = [
+      tile('Crews of 3+', fmt(w.full_crews), `<b>${pct(w.full_crews, 300)}</b> of the 300 goal`, w.full_crews / 300 * 100),
+      tile('Crews on the list', fmt(w.crews), `<b>+${fmt(crews7)}</b> in the last 7 days`),
+      tile('People on the list', fmt(w.people), `<b>+${fmt(w.people_7d)}</b> in 7 days · <b>${fmt(w.people_today)}</b> today`),
+      tile('Average crew size', w.avg_size ? (+w.avg_size).toFixed(1) : '0', `<b>${fmt(w.invited)}</b> joined from a friend's link`),
+      tile('Visit to crew, 7 days', pct(crews7, visits7), `<b>${fmt(crews7)}</b> crews from <b>${fmt(visits7)}</b> visits`)
+    ].join('');
+
+    const dl = d.waitlist_daily;
+    bars('c-signups', dl, [{k: 'started', label: 'Started a crew', c: 'var(--s1)', v: x => x.people - x.invited}, {k: 'invited', label: "Joined a friend's crew", c: 'var(--s2)', v: x => x.invited}]);
+    table('t-signups', ['Day', 'Started a crew', 'Joined a friend', 'Total'], dl.map(x => [x.day, x.people - x.invited, x.invited, x.people]));
+    bars('c-visits', dl, [{k: 'visits', label: 'Visits', c: 'var(--neutral)', v: x => x.visits}]);
+    table('t-visits', ['Day', 'Visits', 'Crews started'], dl.map(x => [x.day, x.visits, x.crews]));
+
+    // sources
+    const src = d.sources.filter(s => s.visits || s.crews_started);
+    const maxC = Math.max(1, ...src.map(s => s.crews_started));
+    $('t-sources').innerHTML = src.length ? `<table><thead><tr><th>Source</th><th>Crews started</th><th class="n">Visits</th><th class="n">Visit to crew</th><th class="n">People</th><th class="n">Crews of 3+</th><th class="n">Crews, last 7 days</th></tr></thead><tbody>${
+      src.map(s => `<tr><td>${esc(s.source)}</td><td><div class="inbar"><i style="width:${(s.crews_started / maxC * 120).toFixed(0)}px"></i>${fmt(s.crews_started)}</div></td><td class="n">${fmt(s.visits)}</td><td class="n">${s.source === 'friend link' ? '–' : pct(s.crews_started, s.visits)}</td><td class="n">${fmt(s.people)}</td><td class="n">${fmt(s.full_crews)}</td><td class="n">${fmt(s.crews_7d)}</td></tr>`).join('')
+    }</tbody></table>` : '<div class="empty">No visits yet. Share your links below.</div>';
+
+    $('t-campaigns').innerHTML = d.campaigns.length ? `<table><thead><tr><th>Source</th><th>Campaign</th><th class="n">People</th></tr></thead><tbody>${
+      d.campaigns.slice(0, 10).map(c => `<tr><td>${esc(c.source)}</td><td>${esc(c.campaign || '–')}${c.content ? ` <span style="color:var(--muted)">· ${esc(c.content)}</span>` : ''}</td><td class="n">${fmt(c.people)}</td></tr>`).join('')}</tbody></table>`
+      : '<div class="empty">No tagged campaigns yet.</div>';
+    hbars('h-heard', d.heard.map(h => [h.answer, h.people]));
+    hbars('h-sizes', (w.sizes || []).map(s => [s.size >= 6 ? '6 or more' : s.size === 1 ? '1 person' : s.size + ' people', s.crews]), true);
+
+    // app
+    const ret = n => (d.retention || []).find(r => r.day === n) || {base: 0, kept: 0};
+    const r1 = ret(1), r7 = ret(7), r30 = ret(30);
+    $('app-tiles').innerHTML = [
+      tile('App accounts', fmt(a.users), `<b>+${fmt(a.users_7d)}</b> in 7 days`),
+      tile('Crews started', fmt(a.crews), `<b>+${fmt(a.crews_7d)}</b> in 7 days · <b>${fmt(a.crews_with_friends)}</b> with friends`),
+      tile('Friend joined in 24h', pct(a.friend_24h, a.friend_24h_base), `of crews over a day old · target over 50%`),
+      tile('Active crews, 7 days', fmt(a.active_crews_7d), `<b>${fmt(a.running)}</b> running now`),
+      tile('Active people, 7 days', fmt(a.active_users_7d), `<b>${fmt(a.checkins_7d)}</b> check-ins in 7 days`),
+      tile('Crews finished', fmt(a.finished), `<b>${fmt(a.finished_strong)}</b> checked in on the last day`),
+      tile('Finished, then went again', fmt(a.finished_again), `<b>${pct(a.finished_again, a.finished)}</b> of finished crews`),
+      tile('Day 1 retention', pct(r1.kept, r1.base), `checked in the day after signing up · benchmark 27%`),
+      tile('Day 7 retention', pct(r7.kept, r7.base), `of <b>${fmt(r7.base)}</b> people a week old or more`),
+      tile('Day 30 retention', pct(r30.kept, r30.base), `of <b>${fmt(r30.base)}</b> people a month old or more`)
+    ].join('');
+    const ad = d.app_daily;
+    bars('c-active', ad, [{k: 'a', label: 'People checking in', c: 'var(--s1)', v: x => x.active_users}]);
+    table('t-active', ['Day', 'People checking in', 'Check-ins', 'Crews started'], ad.map(x => [x.day, x.active_users, x.checkins, x.crews]));
+    bars('c-users', ad, [{k: 'u', label: 'New accounts', c: 'var(--neutral)', v: x => x.signups}]);
+    table('t-users', ['Day', 'New accounts'], ad.map(x => [x.day, x.signups]));
+  }
+
+  // ---------- charts ----------
+  const dayLabel = s => { const [y, m, dd] = s.split('-').map(Number); return new Date(y, m - 1, dd).toLocaleDateString(undefined, {month: 'short', day: 'numeric'}); };
+  // four gridlines at whole, round steps (1, 2, 5, 10, 20, 50...)
+  function niceMax(v){ const st = v / 4; if (st <= 1) return 4; const p = Math.pow(10, Math.floor(Math.log10(st))); const f = st / p; return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 5 ? 5 : 10) * p * 4; }
+  // vertical bars, stacked when there's more than one series; hover any day for its numbers
+  function bars(id, rows, series){
+    const el = $(id), W = 560, H = 210, L = 34, R = 6, T = 8, B = 24, iw = W - L - R, ih = H - T - B;
+    const tot = rows.map(r => series.reduce((s, x) => s + Math.max(0, x.v(r)), 0));
+    const max = niceMax(Math.max(1, ...tot)), n = rows.length, slot = iw / n, bw = Math.max(2, Math.min(22, slot - 2));
+    const y = v => T + ih - v / max * ih;
+    let g = '';
+    for (let i = 0; i <= 4; i++) { const v = max / 4 * i, yy = y(v); g += `<line class="${i ? 'gl' : 'base'}" x1="${L}" x2="${W - R}" y1="${yy.toFixed(1)}" y2="${yy.toFixed(1)}"/><text class="axis" x="${L - 6}" y="${(yy + 3.5).toFixed(1)}" text-anchor="end">${fmt(Math.round(v * 10) / 10)}</text>`; }
+    const every = Math.ceil(n / 6);
+    let marks = '', hits = '', xl = '';
+    rows.forEach((r, i) => {
+      const x = L + i * slot + (slot - bw) / 2;
+      let acc = 0; const segs = series.map(s => ({s, v: Math.max(0, s.v(r))})).filter(q => q.v > 0);
+      segs.forEach((q, j) => {
+        const y0 = y(acc), y1 = y(acc + q.v); acc += q.v;
+        const top = j === segs.length - 1, gap = j > 0 ? 1 : 0;   // a 2px surface gap between stacked pieces
+        const h = Math.max(0, y0 - y1 - gap * 2), rr = top ? Math.min(4, bw / 2, h) : 0;
+        const yt = y1 + (top ? 0 : 0), yb = y0 - gap * 2;
+        marks += rr ? `<path d="M${x},${yb} V${(yt + rr).toFixed(1)} Q${x},${yt.toFixed(1)} ${x + rr},${yt.toFixed(1)} H${(x + bw - rr).toFixed(1)} Q${x + bw},${yt.toFixed(1)} ${x + bw},${(yt + rr).toFixed(1)} V${yb} Z" fill="${q.s.c}"/>`
+                    : `<rect x="${x}" y="${yt.toFixed(1)}" width="${bw}" height="${Math.max(0, yb - yt).toFixed(1)}" fill="${q.s.c}"/>`;
+      });
+      hits += `<rect class="hit" data-i="${i}" x="${(L + i * slot).toFixed(1)}" y="${T}" width="${slot.toFixed(1)}" height="${ih}" rx="4"/>`;
+      if (i % every === 0 || i === n - 1 && n - 1 - Math.floor((n - 1) / every) * every > every / 2) xl += `<text class="axis" x="${(x + bw / 2).toFixed(1)}" y="${H - 6}" text-anchor="middle">${esc(dayLabel(r.day))}</text>`;
+    });
+    el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(series.map(s => s.label).join(' and '))} per day">${g}${marks}${xl}${hits}</svg><div class="tip hide"></div>`;
+    const tip = el.querySelector('.tip'), svg = el.querySelector('svg');
+    const showTip = (i, evt) => {
+      const r = rows[i];
+      tip.innerHTML = `<b>${esc(dayLabel(r.day))}</b>${series.map(s => `<div class="r"><span><i style="background:${s.c}"></i>${esc(s.label)}</span><strong>${fmt(s.v(r))}</strong></div>`).join('')}${series.length > 1 ? `<div class="r"><span>Total</span><strong>${fmt(tot[i])}</strong></div>` : ''}`;
+      const box = svg.getBoundingClientRect(), k = box.width / W;
+      const cx = (L + i * slot + slot / 2) * k, cy = y(tot[i]) * k;
+      tip.style.left = Math.min(Math.max(cx, 70), box.width - 70) + 'px'; tip.style.top = (cy - 8) + 'px';
+      tip.classList.remove('hide');
+    };
+    el.querySelectorAll('.hit').forEach(h => {
+      h.addEventListener('mouseenter', e => showTip(+h.dataset.i, e));
+      h.addEventListener('click', e => showTip(+h.dataset.i, e));
+      h.addEventListener('mouseleave', () => tip.classList.add('hide'));
+    });
+  }
+  function hbars(id, rows, keepOrder){
+    const el = $(id);
+    if (!rows.length || !rows.some(r => r[1])) { el.innerHTML = '<div class="empty">Nothing yet.</div>'; return; }
+    const max = Math.max(1, ...rows.map(r => r[1]));
+    el.innerHTML = `<div class="hbar">${rows.map(([k, v]) => `<span>${esc(k)}</span><span class="t"><i style="width:${(v / max * 100).toFixed(1)}%"></i></span><span class="c">${fmt(v)}</span>`).join('')}</div>`;
+  }
+  function table(id, head, rows){
+    $(id).innerHTML = `<table><thead><tr>${head.map((h, i) => `<th class="${i ? 'n' : ''}">${esc(h)}</th>`).join('')}</tr></thead><tbody>${
+      rows.slice().reverse().map(r => `<tr>${r.map((c, i) => `<td class="${i ? 'n' : ''}">${i ? fmt(c) : esc(dayLabel(c))}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+  }
+
+  // ---------- waitlist export ----------
+  $('csv').onclick = async () => {
+    const { data, error } = await sb.rpc('crews_admin_waitlist');
+    if (error) { alertish('Could not export: ' + error.message); return; }
+    const cols = ['email', 'name', 'crew_code', 'crew_name', 'challenge', 'crew_size', 'leader', 'source', 'utm_campaign', 'utm_content', 'heard', 'signed_up'];
+    const cell = v => { const s = v == null ? '' : String(v); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
+    const csv = [cols.join(',')].concat((data || []).map(r => cols.map(c => cell(r[c])).join(','))).join('\n');
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([csv], {type: 'text/csv'}));
+    a.download = 'crews-waitlist-' + new Date().toISOString().slice(0, 10) + '.csv';
+    document.body.appendChild(a); a.click(); a.remove();
+  };
+  function alertish(msg){ $('updated').textContent = msg; }
+
+  // ---------- links ----------
+  const base = new URL('../join/', location.href).href;
+  $('links').innerHTML = [['TikTok bio', 'tiktok'], ['Instagram bio', 'instagram'], ['YouTube', 'youtube'], ['Campus', 'campus']]
+    .map(([lab, s], i) => `<div class="row"><b>${lab}</b><input id="ln${i}" readonly value="${esc(base + '?s=' + s)}"><button class="b" type="button" data-copy="ln${i}">Copy</button></div>`).join('');
+  const build = () => {
+    const p = new URLSearchParams({utm_source: $('b-src').value});
+    const c = $('b-camp').value.trim().toLowerCase().replace(/\s+/g, '-'), t = $('b-cont').value.trim().toLowerCase().replace(/\s+/g, '-');
+    if (c) p.set('utm_campaign', c); if (t) p.set('utm_content', t);
+    $('b-out').value = base + '?' + p.toString();
+  };
+  ['b-src', 'b-camp', 'b-cont'].forEach(x => $(x).addEventListener('input', build)); build();
+  document.addEventListener('click', async e => {
+    const b = e.target.closest('[data-copy]'); if (!b) return;
+    const v = $(b.dataset.copy).value;
+    try { await navigator.clipboard.writeText(v); } catch (err) { $(b.dataset.copy).select(); try { document.execCommand('copy'); } catch (e2) {} }
+    b.textContent = 'Copied'; setTimeout(() => { b.textContent = 'Copy'; }, 1400);
+  });
+
+  start();
+})();
+</script>
+</body>
+</html>

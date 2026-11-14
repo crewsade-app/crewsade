@@ -17,6 +17,9 @@ Separate from the original Cadence habit tracker. It has its own repo, its own d
 | `manifest.json`, `icon*` | Makes it installable, with its icon |
 | `privacy.html` | Privacy policy (add your contact email at the bottom) |
 | `supabase/schema.sql` | Database setup |
+| `join/` | The website: landing page and crew waitlist |
+| `stats/` | Private stats page (waitlist, sources, app usage) |
+| `supabase/waitlist.sql` | Database setup for the waitlist and stats |
 | `supabase/notifications.sql`, `supabase/functions/crews-push/` | Push notifications (optional) |
 
 ## Try it right now (demo mode)
@@ -81,6 +84,22 @@ Notifications cover: someone checked in, everyone's in (the chain grew), chain m
    - `APP_URL`: your app's address, e.g. `https://tayneoh.github.io/cadence-crews/`.
 5. **Connect the database.** Open `supabase/notifications.sql` and replace `PUSH_FUNCTION_URL` with the function's address (`https://<project>.supabase.co/functions/v1/crews-push`) and `PUSH_SECRET_VALUE` with your secret. Then run it in the SQL Editor.
 6. **Turn it on in the app.** Put the **public** key into `vapidPublicKey` in `config.js`.
+
+## Website, waitlist and stats
+
+- **Landing page:** `join/` (live at `https://tayneoh.github.io/cadence-crews/join/`). Someone signs up, gets a crew link, and sends it to 2 to 4 friends, who join the same waitlist crew. It shows a "crews waiting" counter once there are 10.
+- **Stats page:** `stats/` (live at `https://tayneoh.github.io/cadence-crews/stats/`). Private: only admins can load the numbers. Shows waitlist crews and sign-ups by day and by source, visits, campaigns, crew sizes, and the app's users, crews, check-ins, finished crews and retention. "Download waitlist" saves everyone as a CSV for emailing.
+
+To set it up:
+
+1. Run `supabase/waitlist.sql` in the SQL Editor (safe to rerun).
+2. Sign up in the app with your own email if you haven't, then make yourself an admin (use your email):
+   ```sql
+   insert into public.crew_admins (user_id) select id from auth.users where email = 'you@example.com' on conflict do nothing;
+   ```
+3. Open `stats/` and sign in with that account.
+
+Tracking links: put `join/?s=tiktok` in the TikTok bio, `join/?s=instagram` in Instagram, and so on. For one video, use `join/?utm_source=tiktok&utm_campaign=day9`. The stats page has a link builder. A visitor is credited to the last tagged link they arrived on, even if they sign up days later on the same phone.
 
 ## Updating the database
 

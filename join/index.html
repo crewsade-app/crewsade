@@ -1,0 +1,465 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Cadence Crews · Habit challenges with your friends</title>
+<meta name="description" content="Start a habit challenge with 2 to 4 friends. Everyone checks in each day, and the chain only grows when the whole crew is in.">
+<meta name="theme-color" content="#F2F2F5" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0E0F13" media="(prefers-color-scheme: dark)">
+<link rel="icon" href="../icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="../icon-180.png">
+<meta property="og:title" content="Cadence Crews: habit challenges with your friends">
+<meta property="og:description" content="If one of you misses, the whole crew feels it. Save your crew's spot.">
+<meta property="og:image" content="https://tayneoh.github.io/cadence-crews/icon-512.png">
+<meta name="twitter:card" content="summary">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Inter:wght@400;500;600;700&display=swap">
+<style>
+:root{
+  --bg:#F2F2F5; --card:#FFFFFF; --ink:#141418; --muted:#5E6070; --soft:#3A3C48; --line:#E4E5EC; --chip:#ECECF1;
+  --hero:#141418; --hero-fg:#FFFFFF; --hero-muted:#B4B6C2;
+  --btn:#141418; --btn-fg:#FFFFFF;
+  --chain:#D6146F; --chain-hi:#FF4FA3; --chain-text:#B0105C; --chain-tint:#FCE4EF; --chain-fg:#FFFFFF; --wait:#A6A8B6;
+  --err:#B42318;
+  --display:'Bricolage Grotesque',Inter,system-ui,sans-serif; --body:Inter,system-ui,-apple-system,sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0E0F13; --card:#1B1C22; --ink:#F2F2F5; --muted:#A0A3B1; --soft:#C9CBD6; --line:#2A2C35; --chip:#24262E;
+  --hero:#1B1C22; --hero-fg:#FFFFFF; --hero-muted:#A0A3B1;
+  --btn:#F2F2F5; --btn-fg:#141418;
+  --chain:#FF3D96; --chain-hi:#FF5FA8; --chain-text:#FF7DB8; --chain-tint:#3A1427; --chain-fg:#141418; --wait:#5E6070;
+  --err:#FF8A80; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0E0F13; --card:#1B1C22; --ink:#F2F2F5; --muted:#A0A3B1; --soft:#C9CBD6; --line:#2A2C35; --chip:#24262E;
+  --hero:#1B1C22; --hero-fg:#FFFFFF; --hero-muted:#A0A3B1;
+  --btn:#F2F2F5; --btn-fg:#141418;
+  --chain:#FF3D96; --chain-hi:#FF5FA8; --chain-text:#FF7DB8; --chain-tint:#3A1427; --chain-fg:#141418; --wait:#5E6070;
+  --err:#FF8A80; color-scheme:dark}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 var(--body);-webkit-font-smoothing:antialiased}
+a{color:inherit}
+button,input,select{font:inherit;color:inherit}
+.wrap{max-width:1040px;margin:0 auto;padding:0 20px}
+header.top{display:flex;align-items:center;justify-content:space-between;padding:18px 0}
+.brand{display:flex;align-items:center;gap:10px;font-family:var(--display);font-weight:800;font-size:19px;letter-spacing:-.02em;text-decoration:none}
+.brand img{width:32px;height:32px;border-radius:9px}
+.top a.app{font-size:14px;font-weight:600;color:var(--muted);text-decoration:none}
+.top a.app:hover{color:var(--ink)}
+
+.hero{display:grid;grid-template-columns:1.05fr .95fr;gap:48px;align-items:center;padding:32px 0 56px}
+h1{font-family:var(--display);font-weight:800;letter-spacing:-.035em;line-height:.98;font-size:clamp(42px,6.4vw,72px);margin:0 0 18px}
+h1 em{font-style:normal;color:var(--chain)}
+.lede{font-size:19px;color:var(--soft);max-width:30ch;margin:0 0 26px}
+.chainbox{margin:4px 0 26px;max-width:520px}
+.chainbox svg{display:block;width:100%;height:auto;overflow:visible}
+.counter{display:inline-flex;align-items:center;gap:8px;font-size:14px;font-weight:600;color:var(--muted)}
+.counter b{font-family:var(--display);font-size:17px;color:var(--ink)}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--chain);box-shadow:0 0 0 4px var(--chain-tint)}
+
+.card{background:var(--card);border-radius:28px;padding:26px;box-shadow:0 1px 0 var(--line),0 20px 50px -30px rgba(20,20,24,.35)}
+.card h2{font-family:var(--display);font-weight:800;font-size:26px;letter-spacing:-.025em;line-height:1.05;margin:0 0 6px}
+.card .sub{color:var(--muted);font-size:15px;margin:0 0 20px}
+label.f{display:block;font-size:13px;font-weight:600;color:var(--soft);margin:0 0 6px}
+.field{margin:0 0 14px}
+.in{width:100%;border:1px solid var(--line);background:var(--bg);border-radius:14px;padding:13px 14px;font-size:16px;outline:none;transition:border-color .15s,box-shadow .15s}
+.in:focus{border-color:var(--chain);box-shadow:0 0 0 3px var(--chain-tint)}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.chips{display:flex;flex-wrap:wrap;gap:7px}
+.chip{border:0;border-radius:99px;padding:8px 13px;font-size:14px;font-weight:600;background:var(--chip);color:var(--soft);cursor:pointer;transition:transform .1s}
+.chip:active{transform:scale(.96)}
+.chip[aria-pressed="true"]{background:var(--chain-tint);color:var(--chain-text)}
+.btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;border:0;border-radius:16px;padding:16px;font-weight:700;font-size:16px;background:var(--chain);color:var(--chain-fg);cursor:pointer;transition:transform .12s,opacity .15s}
+.btn:active{transform:scale(.98)}
+.btn[disabled]{opacity:.5;cursor:default}
+.btn.dark{background:var(--btn);color:var(--btn-fg)}
+.btn.ghost{background:var(--bg);color:var(--ink);border:1px solid var(--line)}
+.fine{font-size:12.5px;color:var(--muted);margin:12px 0 0;text-align:center}
+.err{color:var(--err);font-size:14px;font-weight:600;margin:0 0 12px;min-height:0}
+.err:empty{display:none}
+.hide{display:none!important}
+
+.invite-head{display:flex;align-items:center;gap:12px;margin:0 0 16px}
+.faces{display:flex}
+.av{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;color:#141418;border:3px solid var(--card);margin-left:-8px}
+.av:first-child{margin-left:0}
+.av.wait{background:transparent!important;border:2px dashed var(--wait);color:var(--muted)}
+.crewtag{display:inline-block;background:var(--chain-tint);color:var(--chain-text);font-weight:700;font-size:13px;border-radius:99px;padding:4px 10px;margin:0 0 10px}
+
+.share{display:flex;gap:8px;margin:0 0 10px}
+.share .in{font-size:14px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--soft)}
+.share .btn{width:auto;padding:0 18px;flex:none}
+.grid3{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+
+section.how{padding:56px 0 24px;border-top:1px solid var(--line)}
+section.how h3{font-family:var(--display);font-weight:800;font-size:32px;letter-spacing:-.03em;margin:0 0 28px}
+.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.step{background:var(--card);border-radius:24px;padding:22px}
+.step .n{font-family:var(--display);font-weight:800;font-size:15px;color:var(--chain-text);background:var(--chain-tint);width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 0 14px}
+.step b{display:block;font-size:17px;margin:0 0 4px}
+.step p{margin:0;color:var(--muted);font-size:15px}
+.ideas{display:flex;flex-wrap:wrap;gap:8px;margin:28px 0 0}
+.ideas span{background:var(--card);border:1px solid var(--line);border-radius:99px;padding:8px 14px;font-size:14px;font-weight:600;color:var(--soft)}
+.now{display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap;background:var(--hero);color:var(--hero-fg);border-radius:28px;padding:26px 28px;margin:40px 0 0}
+.now p{margin:4px 0 0;color:var(--hero-muted)}
+.now b{font-family:var(--display);font-size:22px;letter-spacing:-.02em}
+.now a{background:var(--hero-fg);color:var(--hero);text-decoration:none;font-weight:700;border-radius:14px;padding:13px 18px}
+footer{padding:40px 0 48px;color:var(--muted);font-size:14px;display:flex;gap:18px;flex-wrap:wrap}
+footer a{color:var(--muted)}
+
+/* chain */
+.lk{transform-box:view-box}
+.lk.drop{animation:drop .5s cubic-bezier(.3,1.5,.5,1) both}
+.lk.swing{animation:swing 1.5s cubic-bezier(.25,.9,.3,1) both}
+.lk.wait{opacity:.9}
+.lk.wait rect{stroke-dasharray:8 7;animation:march 1.2s linear infinite}
+.spark{opacity:0}
+.spark.go{animation:spark .7s ease-out both}
+@keyframes drop{from{opacity:0;transform:translateY(-14px)}to{opacity:1;transform:none}}
+@keyframes swing{0%{opacity:0;transform:rotate(-95deg)}12%{opacity:1}40%{transform:rotate(14deg)}62%{transform:rotate(-6deg)}80%{transform:rotate(2deg)}100%{transform:rotate(0)}}
+@keyframes march{to{stroke-dashoffset:-30}}
+@keyframes spark{0%{opacity:1;transform:translate(0,0) scale(1)}100%{opacity:0;transform:translate(var(--dx),var(--dy)) scale(.4)}}
+@media (prefers-reduced-motion:reduce){.lk.drop,.lk.swing,.spark.go,.lk.wait rect{animation:none}}
+
+@media (max-width:860px){
+  .hero{grid-template-columns:1fr;gap:28px;padding:16px 0 40px}
+  .lede{max-width:none}
+  .steps{grid-template-columns:1fr}
+}
+@media (max-width:420px){
+  .wrap{padding:0 16px}
+  .card{padding:20px;border-radius:24px}
+  .two{grid-template-columns:1fr}
+  .top a.app{display:none}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <a class="brand" href="./"><img src="../icon-180.png" alt="">Cadence Crews</a>
+    <a class="app" href="../">Open the web app</a>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div>
+        <h1>Habit challenges with your <em>friends</em>.</h1>
+        <p class="lede">If one of you misses, the whole crew feels it. Check in every day and the chain grows one link.</p>
+        <div class="chainbox" id="chain" aria-hidden="true"></div>
+        <div class="counter hide" id="counter"><span class="dot"></span><span><b id="count-crews">0</b> crews waiting for the app</span></div>
+      </div>
+
+      <div class="card" id="card">
+        <!-- sign-up -->
+        <form id="form" novalidate>
+          <div id="invite" class="hide">
+            <div class="invite-head"><div class="faces" id="inv-faces"></div></div>
+            <span class="crewtag" id="inv-tag"></span>
+            <h2 id="inv-title">Your crew saved you a spot</h2>
+            <p class="sub" id="inv-sub">Add your email to join them on the list.</p>
+          </div>
+          <div id="fresh">
+            <h2>Save your crew's spot</h2>
+            <p class="sub">The iPhone app comes out 29 December, in time for a January challenge. Sign up, then send your friends the link.</p>
+          </div>
+
+          <div class="two">
+            <div class="field"><label class="f" for="name">First name</label><input class="in" id="name" autocomplete="given-name" maxlength="24" required></div>
+            <div class="field"><label class="f" for="email">Email</label><input class="in" id="email" type="email" inputmode="email" autocomplete="email" maxlength="254" required></div>
+          </div>
+          <div id="crew-fields">
+            <div class="field"><label class="f" for="crew">Crew name <span style="font-weight:500;color:var(--muted)">(optional)</span></label><input class="in" id="crew" maxlength="32" placeholder="Roommates, Lift club, The group chat"></div>
+            <div class="field">
+              <span class="f" style="display:block;font-size:13px;font-weight:600;color:var(--soft);margin:0 0 8px">What would your crew do?</span>
+              <div class="chips" id="challenges" role="group" aria-label="Challenge"></div>
+            </div>
+          </div>
+          <div class="field"><label class="f" for="heard">How did you hear about Crews?</label>
+            <select class="in" id="heard">
+              <option value="">Choose one</option>
+              <option>TikTok</option><option>Instagram</option><option>A friend</option><option>YouTube</option><option>On campus</option><option>Somewhere else</option>
+            </select>
+          </div>
+          <p class="err" id="err" role="alert"></p>
+          <button class="btn" id="submit" type="submit">Save our spot</button>
+          <p class="fine">Crews of 3 or more get into the beta first. We'll only email you about Crews. <a href="../privacy.html">Privacy</a></p>
+        </form>
+
+        <!-- after sign-up -->
+        <div id="done" class="hide">
+          <div class="invite-head"><div class="faces" id="done-faces"></div></div>
+          <span class="crewtag" id="done-tag"></span>
+          <h2 id="done-title">You're on the list</h2>
+          <p class="sub" id="done-sub">Now get your crew. Send this link to 2 to 4 friends. Crews of 3 or more get into the beta first.</p>
+          <div class="share"><input class="in" id="link" readonly aria-label="Your crew's link"><button class="btn dark" id="copy" type="button">Copy</button></div>
+          <div class="grid3">
+            <button class="btn" id="native" type="button">Send to friends</button>
+            <a class="btn ghost" id="sms" href="#" style="text-decoration:none">Text it</a>
+          </div>
+          <p class="fine">Can't wait? <a href="../">Start a crew in the web app</a> today.</p>
+        </div>
+
+        <div id="already" class="hide">
+          <h2>You're already on the list</h2>
+          <p class="sub">That email has a spot. If you lost your crew's link, ask a friend in your crew to send it again, or start a crew now in the web app.</p>
+          <a class="btn dark" href="../" style="text-decoration:none">Open the web app</a>
+          <p class="fine"><a href="#" id="again">Use a different email</a></p>
+        </div>
+      </div>
+    </section>
+
+    <section class="how">
+      <h3>How it works</h3>
+      <div class="steps">
+        <div class="step"><div class="n">1</div><b>Start a crew</b><p>Pick one habit and a length: 7, 14, 30 days or your own.</p></div>
+        <div class="step"><div class="n">2</div><b>Send the link</b><p>Two to four friends join from one link, no searching for usernames.</p></div>
+        <div class="step"><div class="n">3</div><b>Check in daily</b><p>When everyone's in, the chain grows. Miss a day and the crew spends a save.</p></div>
+      </div>
+      <div class="ideas" aria-label="Challenge ideas">
+        <span>Phone-free mornings</span><span>Gym 4x a week</span><span>Read 10 pages</span><span>10k steps</span><span>Study 2 hours</span><span>Asleep by midnight</span><span>Dry January</span><span>No takeout</span>
+      </div>
+      <div class="now">
+        <div><b>Want to start today?</b><p>The web app works now on any phone. Your crew moves over to the iPhone app at launch.</p></div>
+        <a href="../">Start a crew</a>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <span>Cadence Crews</span>
+    <a href="../privacy.html">Privacy</a>
+    <a href="../">Web app</a>
+  </footer>
+</div>
+
+<script src="../config.js"></script>
+<script>
+(function(){
+  const CFG = window.CREWS_CONFIG || {};
+  const LIVE = !!(CFG.supabaseUrl && CFG.supabaseKey);
+  const $ = id => document.getElementById(id);
+  const store = {
+    get(k){ try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } },
+    set(k, v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} },
+    del(k){ try { localStorage.removeItem(k); } catch (e) {} }
+  };
+  const ss = {
+    get(k){ try { return sessionStorage.getItem(k); } catch (e) { return null; } },
+    set(k, v){ try { sessionStorage.setItem(k, v); } catch (e) {} }
+  };
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const COLORS = ['#FFB3D1', '#C9C4FF', '#A8E6CF', '#FFD59E', '#9ED8FF', '#FFC4A8', '#D6F5A3', '#E4C1F9'];
+
+  // ---------- where this visit came from ----------
+  const q = new URLSearchParams(location.search);
+  const code = (q.get('c') || '').trim().toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 16);
+  let src = store.get('crews_src');
+  const fromUrl = {};
+  ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content'].forEach(k => { const v = q.get(k); if (v) fromUrl[k] = v.slice(0, 100); });
+  // short tags for bios: ?s=tiktok works like ?utm_source=tiktok
+  if (!fromUrl.utm_source && q.get('s')) fromUrl.utm_source = q.get('s').slice(0, 100);
+  const ref = document.referrer && !document.referrer.startsWith(location.origin) ? document.referrer.slice(0, 200) : '';
+  if (Object.keys(fromUrl).length || (ref && !src)) {
+    // the most recent tagged visit wins; it's what we credit when they sign up, even days later
+    src = Object.assign({}, fromUrl, ref ? {referrer: ref} : {});
+    store.set('crews_src', src);
+  }
+  src = src || {};
+
+  // ---------- Supabase calls (no library needed for these) ----------
+  async function rpc(fn, args){
+    if (!LIVE) return demo(fn, args);
+    const r = await fetch(CFG.supabaseUrl.replace(/\/$/, '') + '/rest/v1/rpc/' + fn, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json', apikey: CFG.supabaseKey, Authorization: 'Bearer ' + CFG.supabaseKey},
+      body: JSON.stringify(args || {})
+    });
+    const text = await r.text();
+    let body = null; try { body = text ? JSON.parse(text) : null; } catch (e) {}
+    if (!r.ok) throw new Error((body && body.message) || 'Something went wrong. Try again.');
+    return body;
+  }
+  // with config.js empty, pretend so the page can be tried out
+  function demo(fn, args){
+    const db = store.get('crews_demo_wl') || {crews: {}, emails: {}};
+    let out = null;
+    if (fn === 'waitlist_total') out = {people: 1238, crews: 412, full_crews: 230};
+    if (fn === 'waitlist_crew') out = db.crews[args.p_code] || null;
+    if (fn === 'waitlist_join') {
+      const e = (args.p_email || '').toLowerCase();
+      if (db.emails[e]) out = {status: 'already'};
+      else {
+        let c = args.p_code && db.crews[args.p_code], k = args.p_code, leader = false;
+        if (!c) { k = Math.random().toString(36).slice(2, 10); c = db.crews[k] = {name: args.p_crew_name || '', challenge: args.p_challenge || '', count: 0, members: []}; leader = true; }
+        c.count++; c.members.push(args.p_name.split(' ')[0]); db.emails[e] = k;
+        out = {status: 'ok', code: k, crew_name: c.name, challenge: c.challenge, count: c.count, leader};
+      }
+    }
+    store.set('crews_demo_wl', db);
+    return new Promise(res => setTimeout(() => res(out), 350));
+  }
+
+  // ---------- the chain ----------
+  // links drawn like the app icon: same-size ovals, each passing over the one before it at the top and under it at the bottom
+  function chainSVG(n, filled, o){
+    o = Object.assign({W: 58, gap: 6}, o || {});
+    const W = o.W, H = +(W * .54).toFixed(1), sw = +(W * .14).toFixed(1), step = W * .72, R = H / 2, pad = sw + 6;
+    const vw = (n - 1) * step + W + pad * 2, vh = H + pad * 2 + 4;
+    const dd = step + H - W, yo = Math.sqrt(Math.max(0, R * R - (dd / 2) * (dd / 2)));
+    const cy = pad + H / 2;
+    const rr = (x, extra) => `<rect x="${x.toFixed(1)}" y="${pad}" width="${W}" height="${H}" rx="${R}" fill="none"${extra}/>`;
+    let defs = '', links = '', over = '';
+    for (let i = 0; i < n; i++) {
+      const x = pad + i * step, st = i < filled ? 'on' : 'wait';
+      const cls = st === 'wait' ? 'wait' : (i === filled - 1 && o.swingLast ? 'swing' : 'drop');
+      const delay = cls === 'swing' ? o.swingAt : i * 70;
+      const stroke = st === 'on' ? ` stroke="var(--chain)" stroke-width="${sw}"` : ` stroke="var(--wait)" stroke-width="${(sw * .5).toFixed(1)}"`;
+      links += `<g class="lk ${cls}" data-i="${i}" style="animation-delay:${delay}ms;transform-origin:${(x + R).toFixed(1)}px ${cy.toFixed(1)}px">${rr(x, stroke)}</g>`;
+      // where this link crosses the next one at the bottom, draw this link back on top, with a gap around it
+      if (st === 'on' && i + 1 < filled) {
+        const xm = x + (W + step) / 2, b = sw * 1.4;
+        const id = 'c' + i + Math.random().toString(36).slice(2, 6);
+        defs += `<clipPath id="${id}"><rect x="${(xm - b * 1.5).toFixed(1)}" y="${(cy + yo - b).toFixed(1)}" width="${(b * 3).toFixed(1)}" height="${(b * 2).toFixed(1)}"/></clipPath>`;
+        over += `<g class="lk ${i + 1 === filled - 1 && o.swingLast ? 'ov-late' : 'drop'}" style="animation-delay:${(i + 1) * 70}ms" clip-path="url(#${id})">${rr(x, ` stroke="var(--bg-chain, var(--bg))" stroke-width="${(sw * 2).toFixed(1)}"`)}${rr(x, ` stroke="var(--chain)" stroke-width="${sw}"`)}</g>`;
+      }
+    }
+    // sparks for the link that swings on last
+    let fx = '';
+    if (o.swingLast && filled > 0) {
+      const cx = pad + (filled - 1) * step + W / 2;
+      for (let j = 0; j < 8; j++) {
+        const a = j / 8 * Math.PI * 2, dist = W * .9;
+        fx += `<circle class="spark" cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="${(sw / 2.4).toFixed(1)}" fill="var(--chain)" style="--dx:${(Math.cos(a) * dist).toFixed(1)}px;--dy:${(Math.sin(a) * dist * .7).toFixed(1)}px"/>`;
+      }
+    }
+    return `<svg viewBox="0 0 ${vw.toFixed(1)} ${vh.toFixed(1)}" role="img" aria-label="${filled} of ${n} links"><defs>${defs}</defs>${links}${over}${fx}</svg>`;
+  }
+
+  // hero: a crew's chain, with the newest link swinging on when the last friend checks in
+  function heroChain(){
+    const box = $('chain'), n = 8, filled = 7, at = 900;
+    box.innerHTML = chainSVG(n, filled, {swingLast: true, swingAt: at});
+    // the overlap piece for the new link appears once it has landed
+    box.querySelectorAll('.ov-late').forEach(g => { g.style.opacity = 0; setTimeout(() => { g.style.transition = 'opacity .2s'; g.style.opacity = 1; }, at + 700); });
+    setTimeout(() => box.querySelectorAll('.spark').forEach(s => s.classList.add('go')), at + 520);
+  }
+  heroChain();
+
+  // ---------- faces ----------
+  function faces(el, names, total){
+    total = Math.max(total, names.length);
+    let h = names.map((nm, i) => `<div class="av" style="background:${COLORS[i % COLORS.length]}">${esc((nm || '?').slice(0, 1).toUpperCase())}</div>`).join('');
+    for (let i = names.length; i < total; i++) h += `<div class="av wait">+</div>`;
+    el.innerHTML = h;
+  }
+
+  // ---------- challenge chips ----------
+  const IDEAS = ['Phone-free mornings', 'Gym', 'Reading', '10k steps', 'Study', 'Sleep by midnight', 'Something else'];
+  let challenge = '';
+  $('challenges').innerHTML = IDEAS.map(t => `<button type="button" class="chip" aria-pressed="false">${esc(t)}</button>`).join('');
+  $('challenges').addEventListener('click', e => {
+    const b = e.target.closest('.chip'); if (!b) return;
+    const on = b.getAttribute('aria-pressed') !== 'true';
+    $('challenges').querySelectorAll('.chip').forEach(c => c.setAttribute('aria-pressed', 'false'));
+    b.setAttribute('aria-pressed', on ? 'true' : 'false');
+    challenge = on ? b.textContent : '';
+  });
+
+  // ---------- counter ----------
+  rpc('waitlist_total').then(t => {
+    if (t && t.crews >= 10) { $('count-crews').textContent = t.crews.toLocaleString(); $('counter').classList.remove('hide'); }
+  }).catch(() => {});
+
+  // ---------- count this visit (once per tab) ----------
+  if (!ss.get('crews_seen')) {
+    ss.set('crews_seen', '1');
+    rpc('site_visit', {p_page: 'join', p_src: Object.assign({}, src, ref ? {referrer: ref} : {}), p_invited: !!code}).catch(() => {});
+  }
+
+  // ---------- invited by a friend ----------
+  let invite = null;
+  if (code) {
+    rpc('waitlist_crew', {p_code: code}).then(c => {
+      if (!c) return;
+      invite = c;
+      const first = (c.members || []).filter(Boolean)[0];
+      $('fresh').classList.add('hide'); $('crew-fields').classList.add('hide'); $('invite').classList.remove('hide');
+      faces($('inv-faces'), (c.members || []).map(m => m || '?'), Math.max(4, c.count + 1));
+      $('inv-tag').textContent = c.name || 'Your crew';
+      if (c.name) $('inv-tag').classList.remove('hide'); else $('inv-tag').classList.add('hide');
+      $('inv-title').textContent = first ? `${first} saved you a spot` : 'Your crew saved you a spot';
+      $('inv-sub').textContent = c.challenge
+        ? `Join ${c.count === 1 ? first || 'them' : 'the ' + c.count + ' of them'} on the list for ${c.challenge.toLowerCase()}. The app comes out 29 December.`
+        : 'Add your email to join them on the list. The app comes out 29 December.';
+      $('submit').textContent = 'Join the crew';
+    }).catch(() => {});
+  }
+
+  // ---------- returning visitor who already signed up ----------
+  const mine = store.get('crews_wl');
+  if (mine && mine.code && (!code || code === mine.code)) showDone(mine, true);
+
+  // ---------- sign up ----------
+  $('form').addEventListener('submit', async e => {
+    e.preventDefault();
+    const name = $('name').value.trim(), email = $('email').value.trim();
+    $('err').textContent = '';
+    if (!name) { $('err').textContent = 'Add your first name.'; $('name').focus(); return; }
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { $('err').textContent = 'Check your email address.'; $('email').focus(); return; }
+    $('submit').disabled = true;
+    try {
+      const r = await rpc('waitlist_join', {
+        p_email: email, p_name: name, p_code: invite ? code : null,
+        p_crew_name: invite ? null : $('crew').value.trim(), p_challenge: invite ? null : challenge,
+        p_heard: $('heard').value || null, p_src: src
+      });
+      if (r && r.status === 'already') { $('form').classList.add('hide'); $('already').classList.remove('hide'); return; }
+      const saved = {code: r.code, crew_name: r.crew_name, challenge: r.challenge, count: r.count, name, members: invite ? (invite.members || []).concat([name]) : [name]};
+      store.set('crews_wl', saved);
+      showDone(saved, false);
+    } catch (err) {
+      $('err').textContent = err.message || 'Something went wrong. Try again.';
+    } finally {
+      $('submit').disabled = false;
+    }
+  });
+  $('again').addEventListener('click', e => { e.preventDefault(); $('already').classList.add('hide'); $('form').classList.remove('hide'); $('email').select(); });
+
+  function showDone(m, returning){
+    $('form').classList.add('hide'); $('already').classList.add('hide'); $('done').classList.remove('hide');
+    const link = location.origin + location.pathname + '?c=' + m.code;
+    $('link').value = link;
+    const members = (m.members || [m.name]).map(x => (x || '?').split(' ')[0]);
+    const count = Math.max(m.count || 1, members.length);
+    faces($('done-faces'), members.slice(0, count), Math.max(4, count + 1));
+    $('done-tag').textContent = m.crew_name || '';
+    $('done-tag').classList.toggle('hide', !m.crew_name);
+    const need = Math.max(0, 3 - count);
+    $('done-title').textContent = returning ? 'Your crew\'s spot is saved' : (count > 1 ? 'You\'re in the crew' : 'You\'re on the list');
+    $('done-sub').textContent = need
+      ? `Now get your crew. Send this link to ${need === 1 ? 'one more friend' : '2 to 4 friends'}. Crews of 3 or more get into the beta first.`
+      : `Your crew has ${count} people, so you're in line for the beta. Send the link to anyone else who should join.`;
+    const msg = `I saved us a spot on Cadence Crews${m.challenge ? ' for ' + m.challenge.toLowerCase() : ''}. Join my crew: ${link}`;
+    $('sms').href = 'sms:?&body=' + encodeURIComponent(msg);
+    $('native').onclick = async () => {
+      if (navigator.share) { try { await navigator.share({title: 'Cadence Crews', text: msg.replace(link, '').trim(), url: link}); } catch (e) {} }
+      else copy(msg);
+    };
+    $('copy').onclick = () => copy(link);
+    // friends may have joined since; show the crew as it is now
+    if (returning === true) rpc('waitlist_crew', {p_code: m.code}).then(c => {
+      if (!c || !c.count) return;
+      store.set('crews_wl', Object.assign({}, m, {count: c.count, members: (c.members || []).map(x => x || '?')}));
+      if (c.count !== m.count) showDone(Object.assign({}, m, {count: c.count, members: (c.members || []).map(x => x || '?')}), 'updated');
+    }).catch(() => {});
+  }
+  async function copy(text){
+    try { await navigator.clipboard.writeText(text); } catch (e) { $('link').select(); try { document.execCommand('copy'); } catch (e2) {} }
+    $('copy').textContent = 'Copied'; setTimeout(() => { $('copy').textContent = 'Copy'; }, 1600);
+  }
+})();
+</script>
+</body>
+</html>
