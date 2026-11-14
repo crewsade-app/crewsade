@@ -184,3 +184,5 @@ input[type=time]{width:auto}
 .pmore{position:absolute;top:12px;right:14px;font-size:12px;font-weight:700;color:var(--hero-muted)}
 @keyframes popin{0%{opacity:0;transform:scale(.6) translateY(20px)}100%{opacity:1;transform:none}}
 @media (prefers-reduced-motion:reduce){.pbox.anim,.pbox.anim .picon,.pbox.anim .picon::after{animation:none}}
+/* Motion runs these instead when it loads */
+.motion .sheet,.motion .pbox.anim,.motion .pbox.anim .picon,.motion .celebrate .cbox{animation:none}

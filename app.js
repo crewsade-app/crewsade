@@ -518,7 +518,44 @@ function pop(p){
   if (U.pops.length === 1) armPop();
 }
 function armPop(){ clearTimeout(popTimer); popTimer = setTimeout(nextPop, 2600); }
-function nextPop(){ U.pops = (U.pops || []).slice(1); if (U.pops.length) armPop(); safeRender(); }
+let popLeaving = false;
+async function nextPop(){
+  if (popLeaving) return; popLeaving = true; clearTimeout(popTimer);
+  await motionOut('.pbox', {scale:[1, .85], opacity:[1, 0], y:[0, -10]});
+  popLeaving = false; U.pops = (U.pops || []).slice(1); if (U.pops.length) armPop(); safeRender();
+}
+/* ---------- Motion (motion.dev, self-hosted in vendor/motion.js): spring animations for pop-ups, sheets and celebrations.
+   If it fails to load, the CSS animations in app.css run instead. */
+const MO = window.Motion && window.Motion.animate ? window.Motion : null;
+const calm = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+if (MO) document.documentElement.classList.add('motion');
+function motionIn(){
+  if (!MO || calm()) return;
+  const {animate, stagger} = MO;
+  const sh = app.querySelector('.sheet[data-fresh]');
+  if (sh){ animate(sh.parentNode, {opacity:[0, 1]}, {duration:.2}); animate(sh, {y:['100%', '0%']}, {type:'spring', stiffness:420, damping:36}); }
+  const pb = app.querySelector('.pbox.anim');
+  if (pb){
+    animate(pb, {scale:[.5, 1], opacity:[0, 1], y:[40, 0]}, {type:'spring', stiffness:520, damping:22});
+    const badge = pb.querySelector('.picon, .pav'); if (badge) animate(badge, {scale:[0, 1], rotate:[-120, 0]}, {type:'spring', stiffness:560, damping:13, delay:.08});
+    animate(pb.querySelectorAll('.pt, .ps'), {opacity:[0, 1], y:[10, 0]}, {duration:.28, delay:stagger(.06, {startDelay:.12})});
+  }
+  const cb = app.querySelector('.celebrate .cbox[data-fresh]');
+  if (cb){
+    animate(cb.parentNode, {opacity:[0, 1]}, {duration:.25});
+    animate(cb, {scale:[.4, 1], rotate:[-8, 0]}, {type:'spring', stiffness:360, damping:15});
+    const big = cb.querySelector('.big'), n = parseInt(big.textContent, 10);
+    if (n > 1) animate(0, n, {duration:Math.min(1.4, .5 + n * .02), ease:[.2, .8, .2, 1], onUpdate:v => { big.textContent = Math.round(v); }});
+    animate(big, {scale:[.3, 1.18, 1]}, {duration:.7, delay:.1});
+    animate([...cb.children].slice(1), {opacity:[0, 1], y:[16, 0]}, {duration:.35, delay:stagger(.08, {startDelay:.2})});
+  }
+}
+async function motionOut(sel, kf, bg){
+  const el = app.querySelector(sel); if (!MO || !el || calm()) return;
+  const runs = [MO.animate(el, kf, {duration:.2, ease:'easeIn'})];
+  if (bg && el.parentNode) runs.push(MO.animate(el.parentNode, {opacity:[1, 0]}, {duration:.2}));
+  await Promise.all(runs.map(r => r.finished)).catch(() => {});
+}
 function popView(){
   const p = (U.pops || [])[0]; if (!p || U.celebrate) return '';
   const c = p.crew ? crewById(p.crew) : null, fresh = p.id !== lastPop;
@@ -951,18 +988,19 @@ function sheet(){
       <div style="font-size:15px;line-height:1.5">In Safari, tap the Share button, then <b>Add to Home Screen</b>. Open the app from your Home Screen to get notifications.</div>`;
   }
   const fresh = lastSheet !== s; lastSheet = s;   // only slide up when it first opens, not on every redraw
-  return `<div class="sheet-bg" data-a="closesheet"><div class="sheet" data-stop role="dialog" aria-modal="true" ${fresh?'':'style="animation:none"'}>
+  return `<div class="sheet-bg" data-a="closesheet"><div class="sheet" data-stop role="dialog" aria-modal="true" ${fresh?'data-fresh':'style="animation:none"'}>
     <div style="width:40px;height:5px;border-radius:9px;background:var(--line);align-self:center"></div>
     ${body}
     <button class="btn ghost sm" data-a="closesheet">Cancel</button>
   </div></div>`;
 }
 
+let lastCele = null;
 function celebrateView(){
   const k = U.celebrate; if (!k) return '';
   const c = crewById(k.crew) || {};
-  const n = Math.min(Math.max(k.links || 7, 1), 9);
-  return `<div class="celebrate crewc" style="${ccVars(c)}" data-a="closecele"><div class="cbox" data-stop role="dialog" aria-modal="true" aria-label="${esc(k.title)}">
+  const n = Math.min(Math.max(k.links || 7, 1), 9), fresh = lastCele !== k; lastCele = k;
+  return `<div class="celebrate crewc" style="${ccVars(c)}" data-a="closecele"><div class="cbox" ${fresh?'data-fresh':'style="animation:none"'} data-stop role="dialog" aria-modal="true" aria-label="${esc(k.title)}">
     <div class="big">${esc(k.big)}</div>
     <div class="h" style="font-size:24px;font-weight:800;letter-spacing:-.02em">${esc(k.title)}</div>
     <div style="font-size:14px;color:var(--hero-muted)">${esc(k.sub)}</div>
@@ -987,6 +1025,7 @@ function render(){
   const sc = app.querySelector('.screen'); if (sc) sc.scrollTop = keep;
   if (focusId){ const el = document.getElementById(focusId); if (el && el.tagName === 'INPUT') el.focus(); }
   lastKey = key;
+  motionIn();
   const p0 = (U.pops || [])[0]; if (p0 && !U.celebrate) lastPop = p0.id;
   if (U.burst){ const b = U.burst; setTimeout(() => { if (U.burst === b) U.burst = null; }, 800); }
 }
@@ -1112,7 +1151,7 @@ app.addEventListener('click', async e => {
   else if (a === 'authmode'){ U.auth = v; U.authErr = ''; U.authMsg = ''; render(); }
   else if (a === 'crew'){ U.crew = v; U.compose = {photo:null, blob:null, note:''}; go('crew'); }
   else if (a === 'acc'){ const p = pending(); if (p.length === 1) doCheckIn(p[0]); else { U.sheet = {type:'checkin'}; render(); } }
-  else if (a === 'closesheet'){ U.sheet = null; render(); }
+  else if (a === 'closesheet'){ await motionOut('.sheet', {y:['0%', '100%']}, true); U.sheet = null; render(); }
   else if (a === 'checkin') doCheckIn(c);
   else if (a === 'friend'){        // demo: tap a test friend to check them in or out
     const mid = b.dataset.m;
@@ -1157,7 +1196,7 @@ app.addEventListener('click', async e => {
   else if (a === 'dcolor'){ U.draft.color = v; render(); }
   else if (a === 'colorsheet'){ U.sheet = {type:'color', crew:v}; render(); }
   else if (a === 'setcolor'){ const x = crewById(U.sheet.crew); U.sheet = null; x.color = v; render(); act(() => api.setColor(x, v)); }
-  else if (a === 'closecele'){ U.celebrate = null; render(); }
+  else if (a === 'closecele'){ await motionOut('.celebrate .cbox', {scale:[1, .8], opacity:[1, 0]}, true); U.celebrate = null; render(); }
   else if (a === 'closepop') nextPop();
   else if (a === 'popstoggle'){ ls.set('crews.pops', popsOn() ? 'off' : 'on'); render(); }
   else if (a === 'hkind'){ U.hkind = v; render(); const n = document.getElementById('hn'); if (n) n.focus(); }
