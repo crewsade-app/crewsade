@@ -3,13 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Chainge · Habit challenges with your friends</title>
+<title>Crewsade · Habit challenges with your friends</title>
 <meta name="description" content="Start a habit challenge with 2 to 4 friends. Everyone checks in each day, and the chain only grows when the whole crew is in.">
 <meta name="theme-color" content="#F2F2F5" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#0E0F13" media="(prefers-color-scheme: dark)">
 <link rel="icon" href="../icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="../icon-180.png">
-<meta property="og:title" content="Chainge: habit challenges with your friends">
+<meta property="og:title" content="Crewsade: habit challenges with your friends">
 <meta property="og:description" content="If one of you misses, the whole crew feels it. Save your crew's spot.">
 <meta property="og:image" content="https://tayneoh.github.io/cadence-crews/icon-512.png">
 <meta name="twitter:card" content="summary">
@@ -138,7 +138,7 @@ footer a{color:var(--muted)}
 <body>
 <div class="wrap">
   <header class="top">
-    <a class="brand" href="./"><img src="../icon-180.png" alt="">Chainge</a>
+    <a class="brand" href="./"><img src="../icon-180.png" alt="">Crewsade</a>
     <a class="app" href="../">Open the web app</a>
   </header>
 
@@ -176,7 +176,7 @@ footer a{color:var(--muted)}
               <div class="chips" id="challenges" role="group" aria-label="Challenge"></div>
             </div>
           </div>
-          <div class="field"><label class="f" for="heard">How did you hear about Chainge?</label>
+          <div class="field"><label class="f" for="heard">How did you hear about Crewsade?</label>
             <select class="in" id="heard">
               <option value="">Choose one</option>
               <option>TikTok</option><option>Instagram</option><option>A friend</option><option>YouTube</option><option>On campus</option><option>Somewhere else</option>
@@ -184,7 +184,7 @@ footer a{color:var(--muted)}
           </div>
           <p class="err" id="err" role="alert"></p>
           <button class="btn" id="submit" type="submit">Save our spot</button>
-          <p class="fine">Crews of 3 or more get into the beta first. We'll only email you about Chainge. By joining you agree to the <a href="../terms.html">Terms</a> and <a href="../privacy.html">Privacy policy</a>.</p>
+          <p class="fine">Crews of 3 or more get into the beta first. We'll only email you about Crewsade. By joining you agree to the <a href="../terms.html">Terms</a> and <a href="../privacy.html">Privacy policy</a>.</p>
         </form>
 
         <!-- after sign-up -->
@@ -228,7 +228,7 @@ footer a{color:var(--muted)}
   </main>
 
   <footer>
-    <span>Chainge</span>
+    <span>Crewsade</span>
     <a href="../terms.html">Terms</a>
     <a href="../privacy.html">Privacy</a>
     <a href="../">Web app</a>
@@ -444,10 +444,10 @@ footer a{color:var(--muted)}
     $('done-sub').textContent = need
       ? `Now get your crew. Send this link to ${need === 1 ? 'one more friend' : '2 to 4 friends'}. Crews of 3 or more get into the beta first.`
       : `Your crew has ${count} people, so you're in line for the beta. Send the link to anyone else who should join.`;
-    const msg = `I saved us a spot on Chainge${m.challenge ? ' for ' + m.challenge.toLowerCase() : ''}. Join my crew: ${link}`;
+    const msg = `I saved us a spot on Crewsade${m.challenge ? ' for ' + m.challenge.toLowerCase() : ''}. Join my crew: ${link}`;
     $('sms').href = 'sms:?&body=' + encodeURIComponent(msg);
     $('native').onclick = async () => {
-      if (navigator.share) { try { await navigator.share({title: 'Chainge', text: msg.replace(link, '').trim(), url: link}); } catch (e) {} }
+      if (navigator.share) { try { await navigator.share({title: 'Crewsade', text: msg.replace(link, '').trim(), url: link}); } catch (e) {} }
       else copy(msg);
     };
     $('copy').onclick = () => copy(link);

@@ -1,4 +1,4 @@
-/* Chainge: group habit challenges where the whole crew grows one chain.
+/* Crewsade: group habit challenges where the whole crew grows one chain.
    Data lives in Supabase when config.js is filled in; otherwise the app runs in demo mode on this device. */
 (function(){
 'use strict';
@@ -820,7 +820,7 @@ function vWelcome(){
   const a = U.auth;
   const title = a === 'up' ? 'Create your account' : a === 'in' ? 'Sign in' : 'Reset your password';
   return `<div class="screen nonav" style="justify-content:center;gap:22px">
-    <div class="row" style="gap:10px;color:var(--chain)">${ic('rings','width:40px;height:40px;stroke-width:2.6')}<span class="h" style="font-size:22px;font-weight:800;color:var(--ink)">chainge</span></div>
+    <div class="row" style="gap:10px;color:var(--chain)">${ic('rings','width:40px;height:40px;stroke-width:2.6')}<span class="h" style="font-size:22px;font-weight:800;color:var(--ink)">crewsade</span></div>
     ${U.preview ? invitePreviewCard() : `<h1 class="title" style="font-size:42px">Better with your crew.</h1>`}
     ${demoBar()}
     <form data-f="auth" class="card" style="gap:10px" novalidate>
@@ -1286,7 +1286,7 @@ async function doCheckIn(c, mid){
 
 /* ---------- share ---------- */
 async function shareInvite(c){
-  const url = inviteUrl(c), text = `Join my crew "${c.name}" on Chainge. ${c.len} days, together.`;
+  const url = inviteUrl(c), text = `Join my crew "${c.name}" on Crewsade. ${c.len} days, together.`;
   try { if (navigator.share){ await navigator.share({title:'Join my crew', text, url}); return; } } catch(e){ if (e && e.name === 'AbortError') return; }
   try { await navigator.clipboard.writeText(url); toast('Invite link copied'); } catch(e){ toast('Copy the link above to share it'); }
 }
@@ -1317,7 +1317,7 @@ async function recapImage(c){
   box(710, 'First in most', w.early ? (w.early.you ? 'You' : first(w.early.name)).slice(0, 12) : '-', '#FFFFFF');
   c.members.slice(0, 8).forEach((m, i) => { g.fillStyle = m.you ? mag : m.color; g.beginPath(); g.arc(150 + i * 110, 1640, 46, 0, Math.PI * 2); g.fill();
     g.fillStyle = '#141418'; g.font = '700 36px Inter, sans-serif'; g.textAlign = 'center'; g.fillText(initials(m.name), 150 + i * 110, 1653); g.textAlign = 'left'; });
-  g.fillStyle = '#B4B6C2'; g.font = '600 38px Inter, sans-serif'; g.fillText('chainge · ' + inviteUrl(c).replace(/^https?:\/\//, '').slice(0, 44), 90, 1810);
+  g.fillStyle = '#B4B6C2'; g.font = '600 38px Inter, sans-serif'; g.fillText('crewsade · ' + inviteUrl(c).replace(/^https?:\/\//, '').slice(0, 44), 90, 1810);
   return new Promise(r => cv.toBlob(r, 'image/png'));
 }
 async function shareRecap(c){
