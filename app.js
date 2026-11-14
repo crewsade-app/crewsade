@@ -280,9 +280,9 @@ function chainSVG(states, o){
     if (cuts){
       // keep this link's own stroke inside the cut box, remove only where the neighbour's stroke (plus a gap) runs
       const nb = [];
-      if (linked(i, i + 1)) nb.push(pos(i + 1)); if (linked(i, i - 1)) nb.push(pos(i - 1));
+      if (linked(i, i + 1)) nb.push(Object.assign(pos(i + 1), {j:i + 1})); if (linked(i, i - 1)) nb.push(Object.assign(pos(i - 1), {j:i - 1}));
       const id = u + i;
-      defs += `<mask id="${id}" maskUnits="userSpaceOnUse" x="0" y="0" width="${vw.toFixed(1)}" height="${vh.toFixed(1)}"><rect width="100%" height="100%" fill="#fff"/><clipPath id="${id}c">${cuts.replace(/ fill="#000"/g, '')}</clipPath><g clip-path="url(#${id}c)">${nb.map(q => rr(q.x, q.y, ` stroke="#000" stroke-width="${(sw * 2).toFixed(1)}"`)).join('')}</g></mask>`;
+      defs += `<mask id="${id}" maskUnits="userSpaceOnUse" x="0" y="0" width="${vw.toFixed(1)}" height="${vh.toFixed(1)}"><rect width="100%" height="100%" fill="#fff"/><clipPath id="${id}c">${cuts.replace(/ fill="#000"/g, '')}</clipPath><g clip-path="url(#${id}c)">${nb.map(q => `<g data-nb="${q.j}">${rr(q.x, q.y, ` stroke="#000" stroke-width="${(sw * 2).toFixed(1)}"`)}</g>`).join('')}</g></mask>`;
       mask = ` mask="url(#${id})"`;
     }
     const col = st === 'paused' ? o.off : o.on, op = st === 'saved' ? .42 : 1;
@@ -290,7 +290,7 @@ function chainSVG(states, o){
     const shape = st === 't'
       ? rr(x, y, ` stroke="${o.wait}" stroke-width="${(sw * .5).toFixed(1)}" stroke-dasharray="${sw} ${(sw * .8).toFixed(1)}" style="--p:-${(sw * 1.8 * 4).toFixed(1)}px"`)
       : `<g${tilt}${mask}>${rr(x, y, ` stroke="${col}" stroke-opacity="${op}" stroke-width="${sw}"`)}</g>`;
-    out += `<g class="lk ${anim} ${st === 't' ? 'ghost' : ''}" style="animation-delay:${delay}ms;transform-origin:${x.toFixed(1)}px ${cy.toFixed(1)}px"><g class="${rattle ? 'rt' : ''}" style="animation-delay:${delay + 650}ms;transform-origin:${(x + W).toFixed(1)}px ${cy.toFixed(1)}px">${o.move && st !== 't' ? `<g class="wv" style="animation-delay:-${(i * .22).toFixed(2)}s;transform-origin:${cx.toFixed(1)}px ${cy.toFixed(1)}px"><g class="rp" style="animation-delay:${(i * .07 + 1.5).toFixed(2)}s;transform-origin:${cx.toFixed(1)}px ${cy.toFixed(1)}px">${shape}</g></g>` : shape}</g></g>`;
+    out += `<g class="lk ${anim} ${st === 't' ? 'ghost' : ''}" style="animation-delay:${delay}ms;transform-origin:${x.toFixed(1)}px ${cy.toFixed(1)}px"><g class="${rattle ? 'rt' : ''}" style="animation-delay:${delay + 650}ms;transform-origin:${(x + W).toFixed(1)}px ${cy.toFixed(1)}px"><g class="ph" data-i="${i}" data-r="${pos(i).r}" data-k="${i % per}" data-px="${(x + R).toFixed(1)}" data-py="${cy.toFixed(1)}"${cuts ? ` data-m="${u + i}"` : ''}>${shape}</g></g></g>`;
     if (changed && !cascade && st === 'full'){
       const d = delay + 450;
       fx += `<rect class="ring" x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${W}" height="${H}" rx="${R}" fill="none" stroke="${o.on}" stroke-width="${(sw / 1.6).toFixed(1)}" style="animation-delay:${d}ms"/>`;
@@ -298,7 +298,61 @@ function chainSVG(states, o){
     }
   });
   if (o.key) SEEN[o.key] = states.slice();
-  return `<svg class="chainv" viewBox="0 0 ${vw.toFixed(1)} ${vh.toFixed(1)}" style="max-width:${vw.toFixed(0)}px" role="img" aria-label="${esc(o.label || 'Chain progress')}"><defs>${defs}</defs>${out}${fx}</svg>`;
+  return `<svg class="chainv"${o.move ? ` data-move="1" data-step="${step.toFixed(2)}"` : ''} viewBox="0 0 ${vw.toFixed(1)} ${vh.toFixed(1)}" style="max-width:${vw.toFixed(0)}px" role="img" aria-label="${esc(o.label || 'Chain progress')}"><defs>${defs}</defs>${out}${fx}</svg>`;
+}
+
+/* ---------- living chain ----------
+   Each link is a rigid piece hinged to the one before it, so the whole chain bends together and stays interlocked.
+   Tweak CHAIN_MOTION to change the feel. */
+const CHAIN_MOTION = {
+  sway:3.2,        // degrees each link swings in the slow wave
+  period:3.4,      // seconds for one full sway
+  wavelength:7,    // links per wave along the chain
+  tug:9,           // degrees of the tug ripple
+  tugEvery:6.5,    // seconds between tugs
+  tugSpeed:11,     // links per second the tug travels
+  tugWidth:1.6     // how many links the tug bends at once
+};
+let chainRAF = 0;
+function chainMotion(){
+  if (chainRAF) cancelAnimationFrame(chainRAF), chainRAF = 0;
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const chains = [...document.querySelectorAll('svg.chainv[data-move]')].map(svg => {
+    const links = [...svg.querySelectorAll('g.ph')].map(g => ({g, i:+g.dataset.i, r:+g.dataset.r, k:+g.dataset.k, px:+g.dataset.px, py:+g.dataset.py,
+      nbs:g.dataset.m ? [...svg.querySelectorAll(`#${g.dataset.m} [data-nb]`)].map(e => ({e, j:+e.dataset.nb})) : []}));
+    return {svg, step:+svg.dataset.step, links, seed:Math.random() * 10};
+  });
+  if (!chains.length) return;
+  const C = CHAIN_MOTION, rad = Math.PI / 180, t0 = performance.now();
+  const frame = now => {
+    const t = (now - t0) / 1000;
+    let alive = false;
+    chains.forEach(c => {
+      if (!c.svg.isConnected) return; alive = true;
+      const M = [], rowAt = {};
+      const tt = t + c.seed, cyc = (tt % C.tugEvery), head = cyc * C.tugSpeed - 2;
+      c.links.forEach(l => {
+        // angle of this link: slow travelling wave plus a tug that runs down the chain
+        const wave = C.sway * Math.sin(2 * Math.PI * (tt / C.period - l.k / C.wavelength));
+        const d = (l.k - head) / C.tugWidth, tug = -C.tug * d * Math.exp(-d * d) * Math.min(1, 6 / (6 + l.k));
+        const a = (wave + tug) * Math.min(1, (l.k + 1) / 2);
+        // hinge: start where the previous link in the row ended up
+        const p = rowAt[l.r] || {x:l.px, y:l.py};
+        const m = new DOMMatrix().translate(p.x, p.y).rotate(a).translate(-l.px, -l.py);
+        M[l.i] = m;
+        rowAt[l.r] = {x:p.x + c.step * Math.cos(a * rad), y:p.y + c.step * Math.sin(a * rad)};
+        l.g.setAttribute('transform', `matrix(${m.a} ${m.b} ${m.c} ${m.d} ${m.e} ${m.f})`);
+      });
+      // each link's interlock cut follows its neighbour, seen from this link
+      c.links.forEach(l => l.nbs.forEach(n => {
+        if (!M[n.j]) return;
+        const r = M[l.i].inverse().multiply(M[n.j]);
+        n.e.setAttribute('transform', `matrix(${r.a} ${r.b} ${r.c} ${r.d} ${r.e} ${r.f})`);
+      }));
+    });
+    chainRAF = alive ? requestAnimationFrame(frame) : 0;
+  };
+  chainRAF = requestAnimationFrame(frame);
 }
 
 /* ---------- photos ---------- */
@@ -1131,6 +1185,7 @@ function render(){
   if (focusId){ const el = document.getElementById(focusId); if (el && el.tagName === 'INPUT') el.focus(); }
   lastKey = key;
   motionIn();
+  chainMotion();
   const p0 = (U.pops || [])[0]; if (p0 && !U.celebrate) lastPop = p0.id;
   if (U.burst){ const b = U.burst; setTimeout(() => { if (U.burst === b) U.burst = null; }, 800); }
 }
