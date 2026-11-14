@@ -1053,7 +1053,7 @@ function sheet(){
   } else if (s.type === 'hstats'){
     const h = S.habits.find(x => x.id === s.habit); if (!h){ U.sheet = null; return ''; }
     const st = habitStats(h), b = h.kind === 'build';
-    const tile = (v, l, hi) => `<div style="background:var(--card);border-radius:16px;padding:12px;flex:1;min-width:0"><div class="h" style="font-size:28px;font-weight:800;${hi?'color:var(--chain-text)':''}">${v}</div><div class="sub" style="font-size:12px">${l}</div></div>`;
+    const tile = (v, l, hi) => `<div style="background:var(--card);border-radius:16px;padding:12px;flex:1;min-width:0"><div class="h" style="font-size:clamp(20px,7vw,28px);font-weight:800;${hi?'color:var(--chain-text)':''}">${v}</div><div class="sub" style="font-size:12px">${l}</div></div>`;
     body = `<div class="row"><div class="grow"><div class="h" style="font-size:22px;font-weight:800">${esc(h.name)}</div><div class="sub">${b?'Building':'Breaking'} · since ${new Date(h.startDay*DAY).toLocaleDateString(undefined,{month:'short',day:'numeric',timeZone:'UTC'})}</div></div><span class="hkind">${b?'Build':'Break'}</span></div>
       <div class="row" style="gap:8px">${b ? tile(st.current, 'Current streak', true) + tile(st.best, 'Best streak') + tile(st.rate + '%', `Last ${st.win} days`)
         : tile(st.current, 'Days clean', true) + tile(st.best, 'Best run') + tile(st.slips, st.slips === 1 ? 'Slip' : 'Slips')}</div>
@@ -1222,6 +1222,7 @@ function clearInvite(){ U.invite = null; U.preview = null; ls.del('crews.invite'
    ===================================================================== */
 app.addEventListener('click', async e => {
   const b = e.target.closest('[data-a]'), stop = e.target.closest('[data-stop]');
+  if ((U.pops || []).length) nextPop();   // pop-ups never block a tap: tapping anywhere clears them
   if (stop && (!b || (b !== stop && b.contains(stop)))) return;   // clicks inside a sheet or popup don't close it
   if (!b || b.disabled) return;
   const a = b.dataset.a, v = b.dataset.v;
