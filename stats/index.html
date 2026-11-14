@@ -141,7 +141,7 @@ tr:last-child td{border-bottom:0}
       <div class="updated" id="updated"></div>
     </header>
 
-    <h2>Waitlist <small>target: 300 to 500 crews of 3+ by 29 Dec</small></h2>
+    <h2>Waitlist <small>target: 300 to 500 crews of 3+ by 29 Dec · your own sign-ups, visits and activity are left out</small></h2>
     <div class="tiles" id="wl-tiles"></div>
     <div class="grid2">
       <div class="card">
@@ -213,6 +213,8 @@ tr:last-child td{border-bottom:0}
   const pct = (a, b) => b ? Math.round(a / b * 100) + '%' : 'n/a';
   const show = id => ['gate', 'noadmin', 'nosetup', 'dash'].forEach(x => $(x).classList.toggle('hide', x !== id));
   if (!CFG.supabaseUrl || !CFG.supabaseKey) { show('nosetup'); $('nosetup').querySelector('p').textContent = 'Fill in config.js with your Supabase address and key first.'; return; }
+  // opening this page marks the browser as yours, so the landing page stops counting your visits
+  try { localStorage.setItem('crews_no_track', 'true'); } catch (e) {}
   const sb = supabase.createClient(CFG.supabaseUrl, CFG.supabaseKey);
   const TZ = (Intl.DateTimeFormat().resolvedOptions().timeZone) || 'UTC';
   let days = 30;
