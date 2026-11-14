@@ -250,50 +250,55 @@ let SEEN = {};
 /* Each link animates only when it is new or its state changed since this screen last drew it.
    First view of a screen: links cascade in one by one. Later: only the new day's link animates. */
 function chainSVG(states, o){
-  o = Object.assign({w:314, W:34, H:20, sw:5.6, gap:14, on:'var(--chain)', off:'var(--chain-off)', wait:'var(--wait)', bg:'var(--card)', label:'', key:null, sway:true}, o||{});
+  // links drawn like the app icon: same-size ovals, each passing over the link before it at the top and under it at the bottom
+  o = Object.assign({w:314, W:34, sw:0, gap:12, on:'var(--chain)', off:'var(--chain-off)', wait:'var(--wait)', bg:'var(--card)', label:'', key:null}, o||{});
   const n = states.length; if (!n) return '';
-  // flat links alternate with side-on links; each one passes over the link before it and under the next
-  const step = o.W * .74, Lh = o.H * .42, L = o.W * 1.08, lx = x0 => x0 + (o.W - L) / 2;
-  let per = Math.max(1, Math.floor((o.w - o.W - o.sw) / step) + 1); if (per > 2 && per % 2 === 0) per--;
-  const rows = Math.ceil(n / per), rowH = o.H + o.gap, pad = o.sw + 6;
-  const vw = (Math.min(n, per) - 1) * step + o.W + pad * 2 + Math.max(0, L - o.W), vh = rows * rowH - o.gap + pad * 2;
-  const prev = o.key ? SEEN[o.key] : null, cascade = !prev;
-  let out = '', fx = '', order = 0;
-  const added = [];
-  states.forEach((st, i) => { if (!cascade && prev[i] !== st) added.push(i); });
+  const W = o.W, H = +(W * .54).toFixed(1), sw = o.sw || +(W * .14).toFixed(1), step = W * .72, R = H / 2;
+  const per = Math.max(1, Math.floor((o.w - W - sw) / step) + 1);
+  const rows = Math.ceil(n / per), rowH = H + sw + o.gap, pad = sw + 6;
+  const vw = (Math.min(n, per) - 1) * step + W + pad * 2, vh = rows * rowH - o.gap + pad * 2 - sw;
+  const prev = o.key ? SEEN[o.key] : null, cascade = !prev, u = 'k' + Math.random().toString(36).slice(2, 7);
+  const added = []; states.forEach((st, i) => { if (!cascade && prev[i] !== st) added.push(i); });
+  const dd = step + H - W, yo = Math.sqrt(Math.max(0, R * R - (dd / 2) * (dd / 2)));   // crossing points sit at y = cy ± yo
+  const pos = i => { const r = Math.floor(i / per), k = i % per; return {r, x:k * step + pad, y:r * rowH + pad}; };
+  const solid = st => st === 'full' || st === 'saved';
+  const linked = (i, j) => j >= 0 && j < n && pos(i).r === pos(j).r && solid(states[i]) && solid(states[j]);
+  const rr = (x, y, extra) => `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${W}" height="${H}" rx="${R}" fill="none"${extra}/>`;
+  let defs = '', out = '', fx = '', order = 0;
   states.forEach((st, i) => {
-    const r = Math.floor(i / per), k = i % per, flat = k % 2 === 0;
-    const x = k * step + pad + Math.max(0, L - o.W) / 2, y = r * rowH + pad, cx = x + o.W / 2, cy = y + o.H / 2;
+    const {x, y} = pos(i), cx = x + W / 2, cy = y + H / 2;
     const changed = cascade || prev[i] !== st;
-    let col = o.on, op = 1, tr = '';
-    if (st === 'saved') op = .42;
-    else if (st === 'paused'){ col = o.off; tr = ` transform="rotate(${k % 2 ? 16 : -16} ${cx} ${cy}) translate(0 ${k % 2 ? 4 : -4})"`; }
     let anim = '', delay = 0;
     if (changed){ anim = cascade ? 'a-drop' : st === 'paused' ? 'a-snap' : st === 't' ? 'a-fade' : 'a-hook'; delay = cascade ? i * 45 : 120 + (order++) * 160; }
-    // the link before a newly hooked one rattles as it takes the weight
-    const rattle = !cascade && added.includes(i + 1) && states[i + 1] === 'full' && (st === 'full' || st === 'saved');
-    let shape;
-    if (st === 't'){
-      shape = flat ? `<rect x="${x}" y="${y}" width="${o.W}" height="${o.H}" rx="${o.H / 2}" fill="none" stroke="${o.wait}" stroke-width="${o.sw * .55}" stroke-dasharray="${o.sw} ${o.sw * .8}" style="--p:-${(o.sw * 1.8 * 4).toFixed(1)}px"/>`
-        : `<rect x="${lx(x)}" y="${cy - Lh / 2}" width="${L}" height="${Lh}" rx="${Lh / 2}" fill="none" stroke="${o.wait}" stroke-width="${Math.max(1.5, o.sw * .4)}" stroke-dasharray="${o.sw * .8} ${o.sw * .7}" style="--p:-${(o.sw * 1.5 * 4).toFixed(1)}px"/>`;
-    } else if (flat){
-      shape = `<g${tr} opacity="${op}"><rect x="${x}" y="${y}" width="${o.W}" height="${o.H}" rx="${o.H / 2}" fill="none" stroke="${o.bg}" stroke-width="${o.sw * 2.1}"/>`
-        + `<rect x="${x}" y="${y}" width="${o.W}" height="${o.H}" rx="${o.H / 2}" fill="none" stroke="${col}" stroke-width="${o.sw}"/>`
-        + `<rect x="${x}" y="${y}" width="${o.W}" height="${o.H}" rx="${o.H / 2}" fill="none" stroke="#fff" stroke-opacity=".28" stroke-width="${o.sw * .28}" stroke-dasharray="${o.W * .9} ${o.W * 9}" stroke-dashoffset="${-o.H * .3}"/></g>`;
-    } else {
-      shape = `<g${tr} opacity="${op}"><rect x="${lx(x)}" y="${cy - Lh / 2}" width="${L}" height="${Lh}" rx="${Lh / 2}" fill="${col}" stroke="${o.bg}" stroke-width="${o.sw * .7}" paint-order="stroke"/>`
-        + `<rect x="${lx(x) + Lh * .5}" y="${cy - Lh * .3}" width="${L - Lh}" height="${Lh * .22}" rx="${Lh * .11}" fill="#fff" fill-opacity=".38"/></g>`;
+    const rattle = !cascade && added.includes(i + 1) && states[i + 1] === 'full' && solid(st);
+    // cut this link where a neighbour passes over it: the next link at the bottom crossing, the previous one at the top
+    let cuts = '';
+    const b = sw * 1.3;
+    if (linked(i, i + 1)){ const xm = x + (W + step) / 2; cuts += `<rect x="${(xm - b * 1.5).toFixed(1)}" y="${(cy + yo - b).toFixed(1)}" width="${(b * 3).toFixed(1)}" height="${(b * 2).toFixed(1)}" fill="#000"/>`; }
+    if (linked(i, i - 1)){ const xm = x - step + (W + step) / 2; cuts += `<rect x="${(xm - b * 1.5).toFixed(1)}" y="${(cy - yo - b).toFixed(1)}" width="${(b * 3).toFixed(1)}" height="${(b * 2).toFixed(1)}" fill="#000"/>`; }
+    let mask = '';
+    if (cuts){
+      // keep this link's own stroke inside the cut box, remove only where the neighbour's stroke (plus a gap) runs
+      const nb = [];
+      if (linked(i, i + 1)) nb.push(pos(i + 1)); if (linked(i, i - 1)) nb.push(pos(i - 1));
+      const id = u + i;
+      defs += `<mask id="${id}" maskUnits="userSpaceOnUse" x="0" y="0" width="${vw.toFixed(1)}" height="${vh.toFixed(1)}"><rect width="100%" height="100%" fill="#fff"/><clipPath id="${id}c">${cuts.replace(/ fill="#000"/g, '')}</clipPath><g clip-path="url(#${id}c)">${nb.map(q => rr(q.x, q.y, ` stroke="#000" stroke-width="${(sw * 2).toFixed(1)}"`)).join('')}</g></mask>`;
+      mask = ` mask="url(#${id})"`;
     }
-    const swayOn = o.sway && (st === 'full' || st === 'saved');
-    out += `<g class="lk ${anim} ${st === 't' ? 'ghost' : ''}" style="animation-delay:${delay}ms"><g class="${rattle ? 'rt' : ''}" style="animation-delay:${delay + 600}ms"><g class="${swayOn ? 'sw' : ''}" style="animation-delay:-${(i * .18).toFixed(2)}s">${shape}</g></g></g>`;
+    const col = st === 'paused' ? o.off : o.on, op = st === 'saved' ? .42 : 1;
+    const tilt = st === 'paused' ? ` transform="rotate(${i % 2 ? 14 : -14} ${cx.toFixed(1)} ${cy.toFixed(1)}) translate(${i % 2 ? 3 : -3} 0)"` : '';
+    const shape = st === 't'
+      ? rr(x, y, ` stroke="${o.wait}" stroke-width="${(sw * .5).toFixed(1)}" stroke-dasharray="${sw} ${(sw * .8).toFixed(1)}" style="--p:-${(sw * 1.8 * 4).toFixed(1)}px"`)
+      : `<g${tilt}${mask}>${rr(x, y, ` stroke="${col}" stroke-opacity="${op}" stroke-width="${sw}"`)}</g>`;
+    out += `<g class="lk ${anim} ${st === 't' ? 'ghost' : ''}" style="animation-delay:${delay}ms;transform-origin:${x.toFixed(1)}px ${cy.toFixed(1)}px"><g class="${rattle ? 'rt' : ''}" style="animation-delay:${delay + 650}ms;transform-origin:${(x + W).toFixed(1)}px ${cy.toFixed(1)}px">${shape}</g></g>`;
     if (changed && !cascade && st === 'full'){
-      const d = delay + 420;
-      fx += `<rect class="ring" x="${x}" y="${flat ? y : cy - Lh / 2}" width="${o.W}" height="${flat ? o.H : Lh}" rx="${flat ? o.H / 2 : Lh / 2}" fill="none" stroke="${o.on}" stroke-width="${o.sw / 1.5}" style="animation-delay:${d}ms"/>`;
-      for (let j = 0; j < 8; j++){ const a = j / 8 * Math.PI * 2, dist = o.W * .9; fx += `<circle class="spk" cx="${cx}" cy="${cy}" r="${Math.max(1.2, o.sw / 2.4)}" fill="${o.on}" style="--dx:${(Math.cos(a) * dist).toFixed(1)}px;--dy:${(Math.sin(a) * dist * .7).toFixed(1)}px;animation-delay:${d}ms"/>`; }
+      const d = delay + 450;
+      fx += `<rect class="ring" x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${W}" height="${H}" rx="${R}" fill="none" stroke="${o.on}" stroke-width="${(sw / 1.6).toFixed(1)}" style="animation-delay:${d}ms"/>`;
+      for (let j = 0; j < 8; j++){ const a = j / 8 * Math.PI * 2, dist = W * .85; fx += `<circle class="spk" cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="${Math.max(1.2, sw / 2.6).toFixed(1)}" fill="${o.on}" style="--dx:${(Math.cos(a) * dist).toFixed(1)}px;--dy:${(Math.sin(a) * dist * .7).toFixed(1)}px;animation-delay:${d}ms"/>`; }
     }
   });
   if (o.key) SEEN[o.key] = states.slice();
-  return `<svg class="chainv" viewBox="0 0 ${vw.toFixed(1)} ${vh.toFixed(1)}" style="max-width:${vw.toFixed(0)}px" role="img" aria-label="${esc(o.label || 'Chain progress')}">${out}${fx}</svg>`;
+  return `<svg class="chainv" viewBox="0 0 ${vw.toFixed(1)} ${vh.toFixed(1)}" style="max-width:${vw.toFixed(0)}px" role="img" aria-label="${esc(o.label || 'Chain progress')}"><defs>${defs}</defs>${out}${fx}</svg>`;
 }
 
 /* ---------- photos ---------- */
@@ -646,7 +651,7 @@ function popView(){
     ${badge}
     <div class="pt">${esc(p.title)}</div>
     ${p.sub ? `<div class="ps">${esc(p.sub)}</div>` : ''}
-    ${p.chain ? `<div style="width:100%">${chainSVG(Array(Math.min(p.chain, 7)).fill('full'), {w:220, W:28, H:17, sw:4.6, bg:'var(--hero)', on:'var(--chain-hi)', label:p.title, key:'pop' + p.id})}</div>` : ''}
+    ${p.chain ? `<div style="width:100%">${chainSVG(Array(Math.min(p.chain, 7)).fill('full'), {w:220, W:36, bg:'var(--hero)', on:'var(--chain-hi)', label:p.title, key:'pop' + p.id})}</div>` : ''}
     ${more}
   </div></div>`;
 }
@@ -773,7 +778,7 @@ function crewCard(c){
         <span class="grow"><span class="h" style="display:block;font-size:21px;font-weight:700;letter-spacing:-.01em">${esc(c.name)}</span><span class="sub">${fin?'Finished':`Day ${dayNum(c)} of ${c.len}`}</span></span>
         <span class="pill">${ic('rings')}${info.chain}</span>
       </span>
-      ${chainSVG(chainStates(c, info), {w:318, W:26, H:16, sw:4.6, gap:12, key:'home'+c.id, label:info.chain+' day chain'})}
+      ${chainSVG(chainStates(c, info), {w:318, W:38, gap:10, key:'home'+c.id, label:info.chain+' day chain'})}
       <span class="row" style="flex-wrap:wrap">${c.members.map(m=>av(m,'',isDone(c,today(c),m.id),!fin && !isDone(c,today(c),m.id))).join('')}</span>
     </button>
     ${foot}
@@ -820,6 +825,7 @@ function vNew(){
     </div>
     ${U.editPresets && presetPrefs().hidden.length ? `<button class="linkbtn" data-a="restorepresets" style="align-self:flex-start">Bring back the ${presetPrefs().hidden.length} removed preset${presetPrefs().hidden.length===1?'':'s'}</button>` : ''}
     ${d ? `<div class="card" id="setup">
+      <div class="row" style="justify-content:space-between;align-items:center"><div class="h" style="font-size:18px;font-weight:800">${d.tpl==='custom'?'Your own challenge':'Set it up'}</div><button class="linkbtn" data-a="canceldraft">Cancel</button></div>
       <label for="cn" class="lab">Name</label><input id="cn" type="text" maxlength="32" value="${esc(d.name)}" placeholder="Crew challenge" autocomplete="off">
       <label for="cr" class="lab">Rule</label><input id="cr" type="text" maxlength="40" value="${esc(d.rule)}" placeholder="2 to 4 words" autocomplete="off">
       <div class="lab">Days</div>
@@ -864,7 +870,7 @@ function vCrew(){
         <div style="font-size:15px;font-weight:600">day chain</div>
         <div style="margin-left:auto;font-size:13px;color:var(--hero-muted)">Best ${info.best}</div>
       </div>
-      ${chainSVG(chainStates(c, info), {w:314, W:34, H:20, sw:5.6, bg:'var(--hero)', on:'var(--chain-hi)', off:'#5E6070', wait:'var(--hero-muted)', key:'crew'+c.id, label:info.chain+' day chain, day '+dayNum(c)+' of '+c.len})}
+      ${chainSVG(chainStates(c, info), {w:314, W:44, bg:'var(--hero)', on:'var(--chain-hi)', off:'#5E6070', wait:'var(--hero-muted)', key:'crew'+c.id, label:info.chain+' day chain, day '+dayNum(c)+' of '+c.len})}
       <div class="legend" style="color:var(--hero-muted)"><span><svg width="16" height="10" aria-hidden="true"><rect x="1.5" y="1.5" width="13" height="7" rx="3.5" fill="none" stroke="var(--chain-hi)" stroke-width="3"/></svg>Linked</span><span><svg width="16" height="10" aria-hidden="true"><rect x="1.5" y="1.5" width="13" height="7" rx="3.5" fill="none" stroke="var(--chain-hi)" stroke-width="3" opacity=".45"/></svg>Saved</span><span><svg width="16" height="10" aria-hidden="true"><rect x="1.5" y="1.5" width="13" height="7" rx="3.5" fill="none" stroke="#5E6070" stroke-width="3" transform="rotate(-14 8 5)"/></svg>Broken</span></div>
       <div class="row" style="gap:8px;flex-wrap:wrap;font-size:13px;color:var(--hero-muted)">
         <span>${fin?'Done':`Day ${dayNum(c)} of ${c.len}`}</span><span>·</span><span>${status}${weekly}</span>
@@ -949,10 +955,10 @@ function weekStats(c){
 function recapCard(c){
   const fin = finished(c), w = weekStats(c), info = w.info, em = w.early;
   return `<div class="crewc" style="${ccVars(c)}flex:none;background:var(--hero);color:var(--hero-fg);border-radius:28px;padding:22px;display:flex;flex-direction:column;gap:16px;position:relative;overflow:hidden">
-    <div style="position:absolute;right:-70px;top:-6px;width:250px;transform:rotate(-32deg);opacity:.95">${chainSVG(['full','full','full','full'],{w:400, W:84, H:48, sw:12, bg:'var(--hero)', on:'var(--chain-hi)', label:'Chain', key:'deco'+c.id, sway:false})}</div>
+    <div style="position:absolute;right:-70px;top:-6px;width:250px;transform:rotate(-32deg);opacity:.95">${chainSVG(['full','full','full','full'],{w:400, W:84, bg:'var(--hero)', on:'var(--chain-hi)', label:'Chain', key:'deco'+c.id, sway:false})}</div>
     <div class="lab" style="color:var(--hero-muted);position:relative;padding-right:120px">${fin?'Final recap':'This week'} · ${esc(c.name)}</div>
     <div style="position:relative;margin-top:56px"><div class="h" style="font-size:72px;line-height:.85;font-weight:800;letter-spacing:-.05em">${w.hit}<span style="color:var(--hero-muted)">/${w.slots}</span></div><div style="font-size:15px;font-weight:600;margin-top:6px">check-ins</div></div>
-    <div style="position:relative">${chainSVG(w.st,{w:306, W:36, H:22, sw:5.6, bg:'var(--hero)', on:'var(--chain-hi)', off:'#5E6070', wait:'var(--hero-muted)', label:'This week', key:'recap'+c.id})}</div>
+    <div style="position:relative">${chainSVG(w.st,{w:306, W:42, bg:'var(--hero)', on:'var(--chain-hi)', off:'#5E6070', wait:'var(--hero-muted)', label:'This week', key:'recap'+c.id})}</div>
     <div class="row" style="gap:10px">
       <div style="background:var(--hero-chip);border-radius:16px;padding:12px;flex:1"><div class="h" style="font-size:26px;font-weight:800;color:var(--chain-hi)">${info.chain}</div><div style="font-size:12px;color:var(--hero-muted)">Chain</div></div>
       <div style="background:var(--hero-chip);border-radius:16px;padding:12px;flex:1"><div class="h" style="font-size:26px;font-weight:800">${info.best}</div><div style="font-size:12px;color:var(--hero-muted)">Best</div></div>
@@ -1062,7 +1068,7 @@ function sheet(){
     body = `<div class="h" style="font-size:20px;font-weight:800">Crew color</div><div class="sub">Changes the chain and buttons for everyone in ${esc(c.name)}.</div>
       <div class="swatches" style="justify-content:center;padding:8px 0">${CREW_COLORS.map(k=>`<button class="sw-b ${crewColor(c).hi===k.hi?'on':''}" data-a="setcolor" data-v="${k.hi}" style="background:${k.hi};width:46px;height:46px" aria-label="${k.name}"></button>`).join('')}</div>`;
   } else if (s.type === 'habit'){
-    body = `<div class="h" style="font-size:20px;font-weight:800">New private habit</div>
+    body = `<div class="row" style="justify-content:space-between;align-items:center"><div class="h" style="font-size:20px;font-weight:800">New private habit</div><button type="button" class="linkbtn" data-a="closesheet">Cancel</button></div>
       <form data-f="habit" style="display:flex;flex-direction:column;gap:12px">
         <label for="hn" class="sr">Habit name</label><input id="hn" type="text" maxlength="40" value="${esc(U.hname||'')}" placeholder="${U.hkind==='build'?'e.g. Read 10 pages':'e.g. No sugar'}" autocomplete="off">
         <div class="seg2" role="group" aria-label="Habit type"><button type="button" data-a="hkind" data-v="build" class="${U.hkind==='build'?'on':''}">Build a habit</button><button type="button" data-a="hkind" data-v="break" class="${U.hkind==='break'?'on':''}">Break a habit</button></div>
@@ -1103,7 +1109,7 @@ function celebrateView(){
     <div class="big">${esc(k.big)}</div>
     <div class="h" style="font-size:24px;font-weight:800;letter-spacing:-.02em">${esc(k.title)}</div>
     <div style="font-size:14px;color:var(--hero-muted)">${esc(k.sub)}</div>
-    <div style="width:100%">${chainSVG(Array(n).fill('full'), {w:300, W:32, H:19, sw:5, bg:'var(--hero)', on:'var(--chain-hi)', label:k.title, key:'cele'+(k.id || (k.id = Date.now()))})}</div>
+    <div style="width:100%">${chainSVG(Array(n).fill('full'), {w:300, W:42, bg:'var(--hero)', on:'var(--chain-hi)', label:k.title, key:'cele'+(k.id || (k.id = Date.now()))})}</div>
     <div class="row" style="gap:8px;width:100%">
       ${k.crew ? `<button class="btn sm" style="background:var(--hero-chip);color:var(--hero-fg)" data-a="share" data-v="${k.crew}">${ic('share','width:16px;height:16px')}Share</button>` : ''}
       <button class="btn chainbtn sm" data-a="closecele">Keep going</button>
@@ -1290,6 +1296,7 @@ app.addEventListener('click', async e => {
   else if (a === 'report'){ const s = U.sheet, x = crewById(s.crew), f = x.feed.find(p => p.id === s.post); U.sheet = null; act(() => api.report(x, f, v), 'Reported. Thanks for telling us.'); }
   else if (a === 'block'){ U.sheet = null; act(() => api.block(v), 'Blocked'); }
   else if (a === 'unblock') act(() => api.unblock(v), 'Unblocked');
+  else if (a === 'canceldraft'){ U.draft = null; render(); const sc = app.querySelector('.screen'); if (sc) sc.scrollTo({top:0, behavior:'smooth'}); }
   else if (a === 'editpresets'){ U.editPresets = !U.editPresets; render(); }
   else if (a === 'delpreset'){ const p = presetPrefs(), t = presetById(v); if (!t) return;
     const next = v[0] === 'm' ? {mine:p.mine.filter(x => x.id !== v)} : {hidden:p.hidden.concat(v)};

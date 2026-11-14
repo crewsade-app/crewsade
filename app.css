@@ -88,7 +88,8 @@ input[type=text],textarea{font:inherit;font-size:15px;color:var(--ink);backgroun
 .tpl b{font-family:var(--display);font-size:18px;line-height:1.1;font-weight:700}
 .tpl.on{border-color:var(--ink)}
 .chainv{display:block;width:100%;height:auto;overflow:visible}
-.chainv .lk,.chainv .sw,.chainv .ring,.chainv .spk{transform-box:fill-box;transform-origin:center}
+.chainv .ring,.chainv .spk{transform-box:fill-box;transform-origin:center}
+.chainv .lk,.chainv .rt{transform-box:view-box}
 .chainv .a-forge{animation:forge .65s cubic-bezier(.3,1.7,.5,1) both}
 .chainv .a-fade{animation:fadein .45s ease-out both}
 .chainv .a-snap{animation:snap .8s cubic-bezier(.2,.9,.3,1.3) both}
@@ -218,8 +219,8 @@ nav.tabs{touch-action:none;user-select:none;-webkit-user-select:none}
 .popwrap{pointer-events:auto;background:rgba(10,10,14,.18);cursor:pointer}
 .pbox{pointer-events:none}
 /* chain v2: each new link swings in from its hook and locks; the one before it rattles */
-.chainv .rt{transform-box:fill-box;transform-origin:100% 50%;animation:rattle .55s ease-in-out both}
-.chainv .a-hook{transform-origin:0% 50%;animation:hook .95s cubic-bezier(.25,1.35,.45,1) both}
+.chainv .rt{animation:rattle .55s ease-in-out both}
+.chainv .a-hook{animation:hook .95s cubic-bezier(.25,1.35,.45,1) both}
 .chainv .a-drop{animation:drop .5s cubic-bezier(.3,1.5,.5,1) both}
 @keyframes hook{0%{opacity:0;transform:translate(-40%,-140%) rotate(-80deg)}40%{opacity:1;transform:translate(0,0) rotate(22deg)}62%{transform:rotate(-10deg)}80%{transform:rotate(4deg)}100%{opacity:1;transform:none}}
 @keyframes rattle{0%,100%{transform:none}25%{transform:rotate(-7deg)}55%{transform:rotate(5deg)}80%{transform:rotate(-2deg)}}
