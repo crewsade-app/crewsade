@@ -210,3 +210,7 @@ input[type=time]{width:auto}
 .hbox::before{content:"";position:absolute;inset:-8px}
 /* short labels and badges never wrap */
 .first,.hkind,.pmore,.av,.tab,.seg2 button,.lab,.btn,.chip{white-space:nowrap;overflow-wrap:normal}
+/* the page itself never scrolls or bounces; only the screen content does */
+html,body{overflow:hidden;overscroll-behavior:none;position:fixed;inset:0;width:100%}
+.screen{overscroll-behavior:contain}
+nav.tabs{touch-action:none;user-select:none;-webkit-user-select:none}

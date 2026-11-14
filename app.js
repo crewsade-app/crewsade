@@ -15,7 +15,7 @@ const I = {
   plus:'<path d="M12 5v14M5 12h14"/>',
   bars:'<path d="M4 20V11M10 20V5M16 20v-6M21 20H3"/>',
   user:'<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',
-  rings:'<g transform="rotate(-45 12 12)"><rect x="0.5" y="8.25" width="10.5" height="7.5" rx="3.75"/><rect x="13" y="8.25" width="10.5" height="7.5" rx="3.75"/><path d="M7.5 12h9"/></g>',
+  rings:'<defs><clipPath id="rkt"><rect x="9.375" y="6.56" width="6.1" height="4.69"/></clipPath><clipPath id="rkb"><rect x="8.44" y="12.75" width="6.1" height="4.69"/></clipPath><mask id="rk1" maskUnits="userSpaceOnUse" x="-6" y="-6" width="36" height="36"><rect x="-6" y="-6" width="36" height="36" fill="#fff" stroke="none"/><rect x="10.03" y="8.9" width="11.06" height="6.19" rx="3.09" stroke="#000" stroke-width="3.4" clip-path="url(#rkb)"/></mask><mask id="rk2" maskUnits="userSpaceOnUse" x="-6" y="-6" width="36" height="36"><rect x="-6" y="-6" width="36" height="36" fill="#fff" stroke="none"/><rect x="2.9" y="8.9" width="11.06" height="6.19" rx="3.09" stroke="#000" stroke-width="3.4" clip-path="url(#rkt)"/></mask></defs><g transform="rotate(-35 12 12)"><rect x="2.9" y="8.9" width="11.06" height="6.19" rx="3.09" mask="url(#rk1)"/><rect x="10.03" y="8.9" width="11.06" height="6.19" rx="3.09" mask="url(#rk2)"/></g>',
   check:'<path d="M20 6 9 17l-5-5"/>',
   back:'<path d="M19 12H5M12 19l-7-7 7-7"/>',
   x:'<path d="M18 6 6 18M6 6l12 12"/>',
