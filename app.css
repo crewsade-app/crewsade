@@ -225,3 +225,11 @@ nav.tabs{touch-action:none;user-select:none;-webkit-user-select:none}
 @keyframes rattle{0%,100%{transform:none}25%{transform:rotate(-7deg)}55%{transform:rotate(5deg)}80%{transform:rotate(-2deg)}}
 @keyframes drop{0%{opacity:0;transform:translateY(-16px) rotate(-24deg) scale(.7)}100%{opacity:1;transform:none}}
 @media (prefers-reduced-motion:reduce){.chainv .a-hook,.chainv .a-drop,.chainv .rt,.chainv .sw{animation:none}}
+/* challenge presets: edit mode shows a remove button on each */
+.tplw{position:relative;display:flex;min-width:0}
+.tplw .tpl{width:100%;min-width:0}
+.tplx{position:absolute;top:-7px;right:-7px;width:30px;height:30px;border-radius:50%;background:var(--ink);color:var(--bg);display:grid;place-items:center;box-shadow:0 2px 8px rgba(0,0,0,.2)}
+.tplx::before{content:"";position:absolute;inset:-7px}
+.tpl.wiggle{animation:wiggle .35s ease-in-out infinite alternate}
+@keyframes wiggle{from{transform:rotate(-1deg)}to{transform:rotate(1deg)}}
+@media (prefers-reduced-motion:reduce){.tpl.wiggle{animation:none}}

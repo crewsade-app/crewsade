@@ -48,9 +48,13 @@ const TEMPLATES = [
   {name:'Read 20 Pages', rule:'20 pages a day', len:21},
   {name:'10k Steps', rule:'10,000 steps', len:14},
   {name:'6 AM Club', rule:'Up by 6', len:7},
-  {name:'Gym', rule:'Work out', len:30},
-  {name:'', rule:'', len:14, custom:true}
-];
+  {name:'Gym', rule:'Work out', len:30}
+].map((t, i) => ({...t, id:'b' + i}));
+// presets = the built-ins you haven't removed + ones you saved. Kept in your profile so they follow you to other devices.
+const presetPrefs = () => { const p = (S.me && S.me.prefs && S.me.prefs.presets) || {}; return {mine:p.mine || [], hidden:p.hidden || []}; };
+const presets = () => { const p = presetPrefs(); return TEMPLATES.filter(t => !p.hidden.includes(t.id)).concat(p.mine); };
+const presetById = id => id === 'custom' ? {id:'custom', name:'', rule:'', len:14, custom:true} : presets().find(t => t.id === id);
+function savePresets(next){ const p = {...S.me.prefs, presets:{...presetPrefs(), ...next}}; S.me.prefs = p; render(); return api.setPrefs(p); }
 /* each crew picks one of these; it colors that crew's chain, buttons and recap. hi = on dark, lo = on light */
 const CREW_COLORS = [
   {name:'Magenta', hi:'#FF4FA3', lo:'#B0105C'},
@@ -809,10 +813,12 @@ function habitsCard(){
 function vNew(){
   const d = U.draft;
   return `<div class="screen">
-    <h2 class="title">Challenges</h2>
+    <div class="row" style="justify-content:space-between;align-items:baseline"><h2 class="title">Challenges</h2>${presets().length ? `<button class="linkbtn" data-a="editpresets">${U.editPresets ? 'Done' : 'Edit'}</button>` : ''}</div>
     <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px">
-      ${TEMPLATES.map((t,i)=>`<button class="tpl ${d&&d.tpl===i?'on':''}" data-a="tpl" data-v="${i}" ${t.custom?'style="background:transparent;border:2px dashed var(--wait)"':''}><b>${t.custom?'Your own':t.name}</b><span class="sub" style="font-weight:600">${t.custom?'Any habit':t.len+' days'}</span></button>`).join('')}
+      ${presets().map(t=>`<div class="tplw"><button class="tpl ${d&&d.tpl===t.id?'on':''} ${U.editPresets?'wiggle':''}" data-a="tpl" data-v="${t.id}" ${U.editPresets?'tabindex="-1"':''}><b>${esc(t.name)}</b><span class="sub" style="font-weight:600">${t.len} days${t.id[0]==='m'?' · Saved':''}</span></button>${U.editPresets?`<button class="tplx" data-a="delpreset" data-v="${t.id}" aria-label="Remove ${esc(t.name)}">${ic('x','width:14px;height:14px')}</button>`:''}</div>`).join('')}
+      ${U.editPresets ? '' : `<button class="tpl ${d&&d.tpl==='custom'?'on':''}" data-a="tpl" data-v="custom" style="background:transparent;border:2px dashed var(--wait)"><b>Your own</b><span class="sub" style="font-weight:600">Any habit</span></button>`}
     </div>
+    ${U.editPresets && presetPrefs().hidden.length ? `<button class="linkbtn" data-a="restorepresets" style="align-self:flex-start">Bring back the ${presetPrefs().hidden.length} removed preset${presetPrefs().hidden.length===1?'':'s'}</button>` : ''}
     ${d ? `<div class="card" id="setup">
       <label for="cn" class="lab">Name</label><input id="cn" type="text" maxlength="32" value="${esc(d.name)}" placeholder="Crew challenge" autocomplete="off">
       <label for="cr" class="lab">Rule</label><input id="cr" type="text" maxlength="40" value="${esc(d.rule)}" placeholder="2 to 4 words" autocomplete="off">
@@ -826,6 +832,7 @@ function vNew(){
       <div class="sub">${d.mode==='daily'?'Everyone checks in daily. The crew shares one save per person for missed days.':'Each person needs 5 of 7 days a week.'}</div>
       <div class="row" style="justify-content:space-between;font-size:15px;font-weight:600"><span>Photo required</span><button class="toggle" role="switch" aria-checked="${d.proof}" aria-label="Photo required" data-a="proof"></button></div>
       <button class="btn chainbtn crewc" style="${ccVars(d)}" data-a="create" ${d.name.trim()&&!U.busy?'':'disabled'}>Create crew</button>
+      <button class="btn ghost sm" data-a="savepreset" ${d.name.trim()?'':'disabled'}>${ic('plus','width:16px;height:16px')}Save as preset</button>
     </div>` : ''}
   </div>`;
 }
@@ -1283,7 +1290,18 @@ app.addEventListener('click', async e => {
   else if (a === 'report'){ const s = U.sheet, x = crewById(s.crew), f = x.feed.find(p => p.id === s.post); U.sheet = null; act(() => api.report(x, f, v), 'Reported. Thanks for telling us.'); }
   else if (a === 'block'){ U.sheet = null; act(() => api.block(v), 'Blocked'); }
   else if (a === 'unblock') act(() => api.unblock(v), 'Unblocked');
-  else if (a === 'tpl'){ const t = TEMPLATES[+v]; U.draft = {tpl:+v, name:t.name, rule:t.rule, len:t.len, mode:'daily', proof:false}; render();
+  else if (a === 'editpresets'){ U.editPresets = !U.editPresets; render(); }
+  else if (a === 'delpreset'){ const p = presetPrefs(), t = presetById(v); if (!t) return;
+    const next = v[0] === 'm' ? {mine:p.mine.filter(x => x.id !== v)} : {hidden:p.hidden.concat(v)};
+    if (U.draft && U.draft.tpl === v) U.draft = null; if (!presets().filter(x => x.id !== v).length) U.editPresets = false;
+    act(() => savePresets(next), `Removed ${t.name}`); }
+  else if (a === 'restorepresets'){ act(() => savePresets({hidden:[]}), 'Presets are back'); }
+  else if (a === 'savepreset'){ const d = U.draft, p = presetPrefs(); if (!d || !d.name.trim()) return;
+    if (presets().some(x => x.name.trim().toLowerCase() === d.name.trim().toLowerCase() && x.len === Math.round(+d.len))){ toast('That preset is already saved'); return; }
+    if (p.mine.length >= 20){ toast('You can keep up to 20 presets. Remove one first.'); return; }
+    const t = {id:'m' + uid().slice(0, 8), name:d.name.trim().slice(0, 32), rule:(d.rule || '').trim().slice(0, 40), len:Math.min(365, Math.max(3, Math.round(+d.len || 14))), mode:d.mode, proof:!!d.proof, color:d.color || null};
+    U.draft.tpl = t.id; act(() => savePresets({mine:p.mine.concat(t)}), 'Saved to your presets'); }
+  else if (a === 'tpl'){ const t = presetById(v); if (!t) return; U.draft = {tpl:v, name:t.name, rule:t.rule, len:t.len, mode:t.mode || 'daily', proof:!!t.proof, color:t.color || null, customLen:!LENGTHS.includes(t.len)}; render();
     const s = document.getElementById('setup'); if (s) s.scrollIntoView({behavior:'smooth', block:'start'}); if (t.custom){ const n = document.getElementById('cn'); if (n) n.focus(); } }
   else if (a === 'len'){ if (v === 'custom'){ U.draft.customLen = true; render(); const el = document.getElementById('cl'); if (el){ el.focus(); el.select(); } } else { U.draft.customLen = false; U.draft.len = +v; render(); } }
   else if (a === 'dcolor'){ U.draft.color = v; render(); }
