@@ -305,7 +305,7 @@ function chainSVG(states, o){
    Each link is a rigid piece hinged to the one before it, so the whole chain bends together and stays interlocked.
    Tweak CHAIN_MOTION to change the feel. */
 const CHAIN_MOTION = {
-  style:'corkscrew', // 'corkscrew' (links turn over one after another) or 'wave' (sway plus a tug)
+  style:'wave',    // 'wave' (slow sway, plus a tug if tug is above 0) or 'corkscrew' (links turn over one after another)
   // corkscrew
   roll:.6,         // how fast the whole chain turns, in radians per second
   twist:.9,        // how far each link turns past its neighbours, in radians
@@ -316,7 +316,7 @@ const CHAIN_MOTION = {
   sway:3.2,        // degrees each link swings in the slow wave
   period:3.4,      // seconds for one full sway
   wavelength:7,    // links per wave along the chain
-  tug:9,           // degrees of the tug ripple
+  tug:0,           // degrees of the tug ripple (0 = off; 9 felt right when it was on)
   tugEvery:6.5,    // seconds between tugs
   tugSpeed:11,     // links per second the tug travels
   tugWidth:1.6     // how many links the tug bends at once
