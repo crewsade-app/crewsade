@@ -627,7 +627,7 @@ function popView(){
   const badge = p.who ? av(p.who, 'pav')
     : `<span class="picon ${p.tone || ''}">${ic(p.icon || 'check')}</span>`;
   const more = U.pops.length > 1 ? `<span class="pmore">+${U.pops.length - 1}</span>` : '';
-  return `<div class="popwrap"><div class="pbox ${c ? 'crewc' : ''} ${fresh ? 'anim' : ''}" style="${c ? ccVars(c) : ''}" data-a="closepop" role="status" aria-live="polite">
+  return `<div class="popwrap" data-a="closepop"><div class="pbox ${c ? 'crewc' : ''} ${fresh ? 'anim' : ''}" style="${c ? ccVars(c) : ''}" data-a="closepop" role="status" aria-live="polite">
     ${badge}
     <div class="pt">${esc(p.title)}</div>
     ${p.sub ? `<div class="ps">${esc(p.sub)}</div>` : ''}
@@ -1222,7 +1222,7 @@ function clearInvite(){ U.invite = null; U.preview = null; ls.del('crews.invite'
    ===================================================================== */
 app.addEventListener('click', async e => {
   const b = e.target.closest('[data-a]'), stop = e.target.closest('[data-stop]');
-  if ((U.pops || []).length) nextPop();   // pop-ups never block a tap: tapping anywhere clears them
+  if ((U.pops || []).length && !U.celebrate){ e.preventDefault(); e.stopPropagation(); nextPop(); return; }   // a pop-up takes the whole screen: any tap just closes it
   if (stop && (!b || (b !== stop && b.contains(stop)))) return;   // clicks inside a sheet or popup don't close it
   if (!b || b.disabled) return;
   const a = b.dataset.a, v = b.dataset.v;
