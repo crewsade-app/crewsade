@@ -1,4 +1,4 @@
-# Cadence Crews
+# Crewsade
 
 Group habit challenges. You start a challenge, send the link to 2 to 4 friends, and everyone checks in each day. When the whole crew is in, the chain grows by one link. Missed days use shared saves instead of breaking the chain.
 

@@ -1,4 +1,4 @@
-/* Cadence Crews: group habit challenges where the whole crew grows one chain.
+/* Crewsade: group habit challenges where the whole crew grows one chain.
    Data lives in Supabase when config.js is filled in; otherwise the app runs in demo mode on this device. */
 (function(){
 'use strict';
@@ -820,14 +820,15 @@ function vWelcome(){
   const a = U.auth;
   const title = a === 'up' ? 'Create your account' : a === 'in' ? 'Sign in' : 'Reset your password';
   return `<div class="screen nonav" style="justify-content:center;gap:22px">
-    <div class="row" style="gap:10px;color:var(--chain)">${ic('rings','width:40px;height:40px;stroke-width:2.6')}<span class="h" style="font-size:22px;font-weight:800;color:var(--ink)">cadence crews</span></div>
+    <div class="row" style="gap:10px;color:var(--chain)">${ic('rings','width:40px;height:40px;stroke-width:2.6')}<span class="h" style="font-size:22px;font-weight:800;color:var(--ink)">crewsade</span></div>
     ${U.preview ? invitePreviewCard() : `<h1 class="title" style="font-size:42px">Better with your crew.</h1>`}
     ${demoBar()}
     <form data-f="auth" class="card" style="gap:10px" novalidate>
       <div class="h" style="font-size:19px;font-weight:700">${title}</div>
-      ${a === 'up' || DEMO ? `<label class="lab" for="au-name">Your name</label><input id="au-name" type="text" maxlength="24" autocomplete="given-name" placeholder="First name">` : ''}
-      ${DEMO ? '' : `<label class="lab" for="au-email">Email</label><input id="au-email" type="email" autocomplete="email" placeholder="you@example.com">`}
+      ${a === 'up' || DEMO ? `<label class="lab" for="au-name">Your name</label><input id="au-name" type="text" maxlength="24" autocomplete="given-name" placeholder="First name" value="${esc((U.av||{}).name||'')}">` : ''}
+      ${DEMO ? '' : `<label class="lab" for="au-email">Email</label><input id="au-email" type="email" autocomplete="email" placeholder="you@example.com" value="${esc((U.av||{}).email||'')}">`}
       ${DEMO || a === 'reset' ? '' : `<label class="lab" for="au-pw">Password</label><input id="au-pw" type="password" minlength="6" autocomplete="${a==='up'?'new-password':'current-password'}" placeholder="${a==='up'?'At least 6 characters':'Password'}">`}
+      ${a === 'up' && !DEMO ? `<label class="agree" for="au-age"><input id="au-age" type="checkbox"><span>I'm 13 or older and agree to the <a href="terms.html" target="_blank" rel="noopener">Terms</a> and <a href="privacy.html" target="_blank" rel="noopener">Privacy policy</a>.</span></label>` : ''}
       ${U.authErr ? `<div class="err" role="alert">${esc(U.authErr)}</div>` : ''}
       ${U.authMsg ? `<div class="sub" role="status" style="font-weight:600">${esc(U.authMsg)}</div>` : ''}
       <button class="btn chainbtn" type="submit" ${U.busy?'disabled':''}>${DEMO ? 'Try the demo' : a === 'up' ? (U.preview ? 'Create account and join' : 'Create account') : a === 'in' ? (U.preview ? 'Sign in and join' : 'Sign in') : 'Send reset link'}</button>
@@ -836,7 +837,7 @@ function vWelcome(){
         ${a === 'in' ? `<button type="button" class="linkbtn" data-a="authmode" data-v="reset">Forgot password?</button>` : ''}
       </div>`}
     </form>
-    <a href="privacy.html" class="sub" style="text-align:center">Privacy</a>
+    <div class="sub" style="text-align:center"><a href="terms.html">Terms</a> · <a href="privacy.html">Privacy</a></div>
   </div>`;
 }
 
@@ -1141,7 +1142,7 @@ function vYou(){
       <button class="opt danger" data-a="erase">${ic('trash')}${U.confirm==='erase'?'Tap again to erase everything':'Erase demo data'}</button>` : `
       <button class="opt" data-a="signout">${ic('out')}Sign out</button>
       <button class="opt danger" data-a="delacct">${ic('trash')}${U.confirm==='delacct'?'Tap again: delete account and posts':'Delete account'}</button>`}
-    <a href="privacy.html" class="sub" style="text-align:center">Privacy policy</a>
+    <div class="sub" style="text-align:center"><a href="terms.html">Terms of Use</a> · <a href="privacy.html">Privacy policy</a></div>
   </div>`;
 }
 
@@ -1285,7 +1286,7 @@ async function doCheckIn(c, mid){
 
 /* ---------- share ---------- */
 async function shareInvite(c){
-  const url = inviteUrl(c), text = `Join my crew "${c.name}" on Cadence Crews. ${c.len} days, together.`;
+  const url = inviteUrl(c), text = `Join my crew "${c.name}" on Crewsade. ${c.len} days, together.`;
   try { if (navigator.share){ await navigator.share({title:'Join my crew', text, url}); return; } } catch(e){ if (e && e.name === 'AbortError') return; }
   try { await navigator.clipboard.writeText(url); toast('Invite link copied'); } catch(e){ toast('Copy the link above to share it'); }
 }
@@ -1316,7 +1317,7 @@ async function recapImage(c){
   box(710, 'First in most', w.early ? (w.early.you ? 'You' : first(w.early.name)).slice(0, 12) : '-', '#FFFFFF');
   c.members.slice(0, 8).forEach((m, i) => { g.fillStyle = m.you ? mag : m.color; g.beginPath(); g.arc(150 + i * 110, 1640, 46, 0, Math.PI * 2); g.fill();
     g.fillStyle = '#141418'; g.font = '700 36px Inter, sans-serif'; g.textAlign = 'center'; g.fillText(initials(m.name), 150 + i * 110, 1653); g.textAlign = 'left'; });
-  g.fillStyle = '#B4B6C2'; g.font = '600 38px Inter, sans-serif'; g.fillText('cadence crews · ' + inviteUrl(c).replace(/^https?:\/\//, '').slice(0, 44), 90, 1810);
+  g.fillStyle = '#B4B6C2'; g.font = '600 38px Inter, sans-serif'; g.fillText('crewsade · ' + inviteUrl(c).replace(/^https?:\/\//, '').slice(0, 44), 90, 1810);
   return new Promise(r => cv.toBlob(r, 'image/png'));
 }
 async function shareRecap(c){
@@ -1516,10 +1517,11 @@ app.addEventListener('submit', async e => {
   e.preventDefault(); const f = e.target.dataset.f, val = id => { const el = document.getElementById(id); return el ? el.value.trim() : ''; };
   if (f === 'auth'){
     const name = val('au-name'), email = val('au-email'), pw = (document.getElementById('au-pw') || {}).value || '';
-    U.authErr = ''; U.authMsg = '';
+    U.authErr = ''; U.authMsg = ''; U.av = {name, email};
     if ((U.auth === 'up' || DEMO) && !name){ U.authErr = 'Add your name.'; render(); return; }
     if (!DEMO && !/^\S+@\S+\.\S+$/.test(email)){ U.authErr = 'Enter a valid email.'; render(); return; }
     if (!DEMO && U.auth !== 'reset' && pw.length < 6){ U.authErr = 'Use at least 6 characters for your password.'; render(); return; }
+    if (!DEMO && U.auth === 'up' && !(document.getElementById('au-age') || {}).checked){ U.authErr = 'You need to be 13 or older and agree to the Terms to create an account.'; render(); return; }
     U.busy = true; render();
     try {
       if (U.auth === 'reset'){ await api.resetPassword(email); U.authMsg = 'Check your email for a reset link.'; U.busy = false; render(); return; }

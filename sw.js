@@ -1,6 +1,6 @@
-// Cadence Crews service worker: offline app shell and push notifications.
+// Crewsade service worker: offline app shell and push notifications.
 // After changing any app file, bump CACHE_VERSION so installed copies update.
-const CACHE_VERSION = 'crews-v26';
+const CACHE_VERSION = 'crews-v28';
 const SHELL = ['./', 'index.html', 'app.css', 'app.js', 'config.js', 'manifest.json', 'icon.svg', 'icon-192.png', 'icon-512.png', 'icon-180.png', 'vendor/motion.js'];
 
 self.addEventListener('install', e => {
@@ -22,8 +22,8 @@ self.addEventListener('fetch', e => {
 
 self.addEventListener('push', e => {
   let d = {};
-  try { d = e.data ? e.data.json() : {}; } catch (err) { d = { title: 'Cadence Crews', body: e.data ? e.data.text() : '' }; }
-  e.waitUntil(self.registration.showNotification(d.title || 'Cadence Crews', {
+  try { d = e.data ? e.data.json() : {}; } catch (err) { d = { title: 'Crewsade', body: e.data ? e.data.text() : '' }; }
+  e.waitUntil(self.registration.showNotification(d.title || 'Crewsade', {
     body: d.body || '', tag: d.tag, icon: 'icon-192.png', badge: 'icon-192.png', data: { url: d.url || './' }
   }));
 });
