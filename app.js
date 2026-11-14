@@ -246,7 +246,7 @@ function chainStates(c, info){
 }
 
 /* ---------- drawing the chain ---------- */
-let SEEN = {};
+let SEEN = {}, HOOKS = {};
 /* Each link animates only when it is new or its state changed since this screen last drew it.
    First view of a screen: links cascade in one by one. Later: only the new day's link animates. */
 function chainSVG(states, o){
@@ -257,6 +257,8 @@ function chainSVG(states, o){
   const per = Math.max(1, Math.floor((o.w - W - sw) / step) + 1);
   const rows = Math.ceil(n / per), rowH = H + sw + o.gap, pad = sw + 6;
   const vw = (Math.min(n, per) - 1) * step + W + pad * 2, vh = rows * rowH - o.gap + pad * 2 - sw;
+  // hookLast: show every link but the last straight away, then swing the last one on
+  if (o.hookLast && o.key && !SEEN[o.key] && n > 1) SEEN[o.key] = states.slice(0, -1).concat(['t']);
   const prev = o.key ? SEEN[o.key] : null, cascade = !prev, u = 'k' + Math.random().toString(36).slice(2, 7);
   const added = []; states.forEach((st, i) => { if (!cascade && prev[i] !== st) added.push(i); });
   const dd = step + H - W, yo = Math.sqrt(Math.max(0, R * R - (dd / 2) * (dd / 2)));   // crossing points sit at y = cy ± yo
@@ -269,8 +271,17 @@ function chainSVG(states, o){
     const {x, y} = pos(i), cx = x + W / 2, cy = y + H / 2;
     const changed = cascade || prev[i] !== st;
     let anim = '', delay = 0;
-    if (changed){ anim = cascade ? 'a-drop' : st === 'paused' ? 'a-snap' : st === 't' ? 'a-fade' : 'a-hook'; delay = cascade ? i * 45 : 120 + (order++) * 160; }
-    const rattle = !cascade && added.includes(i + 1) && states[i + 1] === 'full' && solid(st);
+    if (changed){ anim = cascade ? 'a-drop' : st === 'paused' ? 'a-snap' : st === 't' ? 'a-fade' : 'a-hook'; delay = cascade ? i * 45 : (o.hookLast ? 420 : 120) + (order++) * 160; }
+    // with live motion on, a new link is swung in by chainMotion instead of the CSS hook
+    // remembered by time, so a second render straight after a check-in doesn't cut the swing short
+    let jsHook = null;
+    if (o.move && o.key && st === 'full'){
+      const hk = o.key + ':' + i, now = performance.now();
+      if (anim === 'a-hook') HOOKS[hk] = now + delay;
+      if (HOOKS[hk] && now - HOOKS[hk] < 2500) jsHook = HOOKS[hk];
+    }
+    if (jsHook) anim = '';
+    const rattle = !o.move && !cascade && added.includes(i + 1) && states[i + 1] === 'full' && solid(st);
     // cut this link where a neighbour passes over it: the next link at the bottom crossing, the previous one at the top
     let cuts = '';
     const b = sw * 1.3;
@@ -290,9 +301,9 @@ function chainSVG(states, o){
     const shape = st === 't'
       ? rr(x, y, ` stroke="${o.wait}" stroke-width="${(sw * .5).toFixed(1)}" stroke-dasharray="${sw} ${(sw * .8).toFixed(1)}" style="--p:-${(sw * 1.8 * 4).toFixed(1)}px"`)
       : `<g${tilt}${mask}>${rr(x, y, ` stroke="${col}" stroke-opacity="${op}" stroke-width="${sw}"`)}</g>`;
-    out += `<g class="lk ${anim} ${st === 't' ? 'ghost' : ''}" style="animation-delay:${delay}ms;transform-origin:${x.toFixed(1)}px ${cy.toFixed(1)}px"><g class="${rattle ? 'rt' : ''}" style="animation-delay:${delay + 650}ms;transform-origin:${(x + W).toFixed(1)}px ${cy.toFixed(1)}px"><g class="ph" data-i="${i}" data-r="${pos(i).r}" data-k="${i % per}" data-px="${(x + R).toFixed(1)}" data-py="${cy.toFixed(1)}"${cuts ? ` data-m="${u + i}"` : ''}>${shape}</g></g></g>`;
-    if (changed && !cascade && st === 'full'){
-      const d = delay + 450;
+    out += `<g class="lk ${anim} ${st === 't' ? 'ghost' : ''}" style="animation-delay:${delay}ms;transform-origin:${x.toFixed(1)}px ${cy.toFixed(1)}px"><g class="${rattle ? 'rt' : ''}" style="animation-delay:${delay + 650}ms;transform-origin:${(x + W).toFixed(1)}px ${cy.toFixed(1)}px"><g class="ph" data-i="${i}" data-r="${pos(i).r}" data-k="${i % per}" data-px="${(x + R).toFixed(1)}" data-py="${cy.toFixed(1)}"${cuts ? ` data-m="${u + i}"` : ''}${jsHook ? ` data-hook="${jsHook.toFixed(0)}" style="opacity:0"` : ''}>${shape}</g></g></g>`;
+    if ((changed && !cascade && st === 'full') || jsHook){
+      const d = jsHook ? Math.round(jsHook - performance.now() + 230) : delay + 450;
       fx += `<rect class="ring" x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${W}" height="${H}" rx="${R}" fill="none" stroke="${o.on}" stroke-width="${(sw / 1.6).toFixed(1)}" style="animation-delay:${d}ms"/>`;
       for (let j = 0; j < 8; j++){ const a = j / 8 * Math.PI * 2, dist = W * .85; fx += `<circle class="spk" cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="${Math.max(1.2, sw / 2.6).toFixed(1)}" fill="${o.on}" style="--dx:${(Math.cos(a) * dist).toFixed(1)}px;--dy:${(Math.sin(a) * dist * .7).toFixed(1)}px;animation-delay:${d}ms"/>`; }
     }
@@ -319,14 +330,20 @@ const CHAIN_MOTION = {
   tug:0,           // degrees of the tug ripple (0 = off; 9 felt right when it was on)
   tugEvery:6.5,    // seconds between tugs
   tugSpeed:11,     // links per second the tug travels
-  tugWidth:1.6     // how many links the tug bends at once
+  tugWidth:1.6,    // how many links the tug bends at once
+  // adding a link
+  hookFrom:-100,   // degrees the new link starts at (negative = swung up above the chain)
+  hookDamp:3.4,    // how quickly its swing settles
+  hookSwing:9.5,   // how fast it swings back and forth
+  jolt:10,         // degrees of the jolt that runs back up the chain when it lands
+  joltSpeed:13     // links per second the jolt travels
 };
 let chainRAF = 0;
 function chainMotion(){
   if (chainRAF) cancelAnimationFrame(chainRAF), chainRAF = 0;
   if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
   const chains = [...document.querySelectorAll('svg.chainv[data-move]')].map(svg => {
-    const links = [...svg.querySelectorAll('g.ph')].map(g => ({g, i:+g.dataset.i, r:+g.dataset.r, k:+g.dataset.k, px:+g.dataset.px, py:+g.dataset.py,
+    const links = [...svg.querySelectorAll('g.ph')].map(g => ({g, hook:g.dataset.hook == null ? null : +g.dataset.hook, i:+g.dataset.i, r:+g.dataset.r, k:+g.dataset.k, px:+g.dataset.px, py:+g.dataset.py,
       nbs:g.dataset.m ? [...svg.querySelectorAll(`#${g.dataset.m} [data-nb]`)].map(e => ({e, j:+e.dataset.nb})) : []}));
     return {svg, step:+svg.dataset.step, links, seed:Math.random() * 10};
   });
@@ -338,12 +355,27 @@ function chainMotion(){
     chains.forEach(c => {
       if (!c.svg.isConnected) return; alive = true;
       const M = [], rowAt = {};
+      // a link that was just added: it swings down from above on its hinge, and the jolt runs back up the chain
+      const hk = c.links.find(l => l.hook != null), ht = hk ? (now - hk.hook) / 1000 : -1;
       const tt = t + c.seed, cyc = (tt % C.tugEvery), head = cyc * C.tugSpeed - 2;
       c.links.forEach(l => {
         // angle of this link: slow travelling wave plus a tug that runs down the chain
         const wave = C.sway * Math.sin(2 * Math.PI * (tt / C.period - l.k / C.wavelength));
         const d = (l.k - head) / C.tugWidth, tug = -C.tug * d * Math.exp(-d * d) * Math.min(1, 6 / (6 + l.k));
-        let a = (wave + tug) * Math.min(1, (l.k + 1) / 2), sy = 1;
+        let a = (wave + tug) * Math.min(1, (l.k + 1) / 2), sy = 1, sc = 1;
+        if (hk && ht < 4){
+          if (l === hk){
+            if (ht < 0){ l.g.style.opacity = 0; }
+            else {
+              l.g.style.opacity = Math.min(1, ht / .1);
+              a += C.hookFrom * Math.exp(-C.hookDamp * ht) * Math.cos(C.hookSwing * ht);
+              sc = .75 + .25 * Math.min(1, ht / .2);
+            }
+          } else if (ht > .18 && l.i < hk.i){
+            const d = (hk.i - l.i) - (ht - .18) * C.joltSpeed;
+            a += -C.jolt * Math.exp(-(ht - .18) * 2.2) * d * Math.exp(-d * d);
+          }
+        }
         if (C.style === 'corkscrew'){
           // seen side-on, a link turning around the chain's length just gets thinner and fuller
           a = 0; const turn = tt * C.roll + C.twist * Math.sin(tt * C.twistSpeed - l.k * C.twistGap), c = Math.cos(turn);
@@ -351,7 +383,7 @@ function chainMotion(){
         }
         // hinge: start where the previous link in the row ended up
         const p = rowAt[l.r] || {x:l.px, y:l.py};
-        const m = new DOMMatrix().translate(p.x, p.y).rotate(a).scale(1, sy).translate(-l.px, -l.py);
+        const m = new DOMMatrix().translate(p.x, p.y).rotate(a).scale(sc, sc * sy).translate(-l.px, -l.py);
         M[l.i] = m;
         rowAt[l.r] = {x:p.x + c.step * Math.cos(a * rad), y:p.y + c.step * Math.sin(a * rad)};
         l.g.setAttribute('transform', `matrix(${m.a} ${m.b} ${m.c} ${m.d} ${m.e} ${m.f})`);
@@ -718,7 +750,7 @@ function popView(){
     ${badge}
     <div class="pt">${esc(p.title)}</div>
     ${p.sub ? `<div class="ps">${esc(p.sub)}</div>` : ''}
-    ${p.chain ? `<div style="width:100%">${chainSVG(Array(Math.min(p.chain, 7)).fill('full'), {w:220, W:36, bg:'var(--hero)', on:'var(--chain-hi)', label:p.title, key:'pop' + p.id})}</div>` : ''}
+    ${p.chain ? `<div style="width:100%">${chainSVG(Array(Math.min(p.chain, 7)).fill('full'), {w:220, W:36, bg:'var(--hero)', on:'var(--chain-hi)', label:p.title, hookLast:true, key:'pop' + p.id})}</div>` : ''}
     ${more}
   </div></div>`;
 }
@@ -1176,7 +1208,7 @@ function celebrateView(){
     <div class="big">${esc(k.big)}</div>
     <div class="h" style="font-size:24px;font-weight:800;letter-spacing:-.02em">${esc(k.title)}</div>
     <div style="font-size:14px;color:var(--hero-muted)">${esc(k.sub)}</div>
-    <div style="width:100%">${chainSVG(Array(n).fill('full'), {w:300, W:42, bg:'var(--hero)', on:'var(--chain-hi)', label:k.title, key:'cele'+(k.id || (k.id = Date.now()))})}</div>
+    <div style="width:100%">${chainSVG(Array(n).fill('full'), {w:300, W:42, bg:'var(--hero)', on:'var(--chain-hi)', label:k.title, hookLast:true, key:'cele'+(k.id || (k.id = Date.now()))})}</div>
     <div class="row" style="gap:8px;width:100%">
       ${k.crew ? `<button class="btn sm" style="background:var(--hero-chip);color:var(--hero-fg)" data-a="share" data-v="${k.crew}">${ic('share','width:16px;height:16px')}Share</button>` : ''}
       <button class="btn chainbtn sm" data-a="closecele">Keep going</button>
