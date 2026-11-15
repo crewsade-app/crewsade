@@ -20,6 +20,7 @@ Separate from the original Cadence habit tracker. It has its own repo, its own d
 | `join/` | The website: landing page and crew waitlist |
 | `stats/` | Private stats page (waitlist, sources, app usage) |
 | `supabase/waitlist.sql` | Database setup for the waitlist and stats |
+| `supabase/kit.sql` | Sends new waitlist sign-ups to Kit for the welcome email (optional) |
 | `supabase/notifications.sql`, `supabase/functions/crews-push/` | Push notifications (optional) |
 
 ## Try it right now (demo mode)
@@ -100,6 +101,10 @@ To set it up:
 3. Open `stats/` and sign in with that account.
 
 Tracking links: put `join/?s=tiktok` in the TikTok bio, `join/?s=instagram` in Instagram, and so on. For one video, use `join/?utm_source=tiktok&utm_campaign=day9`. The stats page has a link builder. A visitor is credited to the last tagged link they arrived on, even if they sign up days later on the same phone.
+
+### Welcome email (Kit)
+
+`supabase/kit.sql` adds each new waitlist sign-up to Kit with a "waitlist" tag, their first name, and their crew's code and name. A Kit rule on that tag sends the welcome email, which links back to the crew with `join/?c={{ subscriber.crew_code }}`. Fill in the two placeholders at the top of the file (Kit API key and tag ID) and run it in the SQL Editor. Until they're filled in it does nothing, and a problem reaching Kit never blocks a sign-up. People who signed up before you run it aren't sent over, so import those from "Download waitlist".
 
 ### Sign-ups closed until launch
 
