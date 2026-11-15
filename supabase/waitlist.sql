@@ -307,3 +307,45 @@ revoke all on function public.crews_admin_waitlist() from public, anon, authenti
 grant execute on function public.waitlist_join(text, text, text, text, text, text, jsonb), public.waitlist_crew(text),
   public.waitlist_total(), public.site_visit(text, jsonb, boolean) to anon, authenticated;
 grant execute on function public.crews_is_admin(), public.crews_admin_stats(int, text), public.crews_admin_waitlist() to authenticated;
+
+-- ---------- closing sign-ups until launch ----------
+-- While signups_open is false, nobody can create an account (the app shows "Opening 29 December"
+-- and a link to the waitlist). People who already have an account can still sign in and use their crews.
+-- Emails in crew_signup_allowlist can still sign up, for beta testers; send them the app link with ?beta=1.
+--
+-- Open sign-ups at launch:   update public.crew_settings set value = 'true' where key = 'signups_open';
+-- Close them again:          update public.crew_settings set value = 'false' where key = 'signups_open';
+-- Let a tester in:           insert into public.crew_signup_allowlist (email) values ('friend@example.com') on conflict do nothing;
+create table if not exists public.crew_settings (
+  key text primary key,
+  value jsonb not null
+);
+insert into public.crew_settings (key, value) values ('signups_open', 'false') on conflict (key) do nothing;
+
+create table if not exists public.crew_signup_allowlist (
+  email text primary key check (email = lower(email))
+);
+alter table public.crew_settings enable row level security;
+alter table public.crew_signup_allowlist enable row level security;
+revoke all on public.crew_settings, public.crew_signup_allowlist from anon, authenticated;
+
+create or replace function public.crews_signups_open() returns boolean
+language sql stable security definer set search_path = public as $$
+  select coalesce((select (value #>> '{}')::boolean from crew_settings where key = 'signups_open'), true);
+$$;
+
+create or replace function public.crews_block_closed_signups() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  if not public.crews_signups_open()
+     and not exists (select 1 from crew_signup_allowlist where email = lower(new.email)) then
+    raise exception 'Sign-ups are closed until launch.';
+  end if;
+  return new;
+end $$;
+drop trigger if exists crews_block_closed_signups on auth.users;
+create trigger crews_block_closed_signups before insert on auth.users
+  for each row execute function public.crews_block_closed_signups();
+
+revoke all on function public.crews_signups_open() from public, anon, authenticated;
+grant execute on function public.crews_signups_open() to anon, authenticated;

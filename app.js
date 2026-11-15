@@ -449,6 +449,7 @@ function demoBackend(){
       saveD(); return id;
     },
     async preview(){ return null; },
+    async signupsOpen(){ return true; },
     async join(){ throw new Error('Invite links work once the app is connected to Supabase.'); },
     async checkIn(c, mid){ const x = find(c.id), d = today(c); x.log[d] = x.log[d] || {}; x.log[d][mid || 'me'] = Date.now(); saveD(); },
     async uncheck(c, mid){ const x = find(c.id), d = today(c); if (x.log[d]) delete x.log[d][mid]; saveD(); },
@@ -496,12 +497,16 @@ function supabaseBackend(){
   return {
     async start(){
       if (!window.supabase || !window.supabase.createClient) throw new Error('offline');
+      // a password reset link lands here with type=recovery in the address; note it before the client reads and clears it
+      const recovering = /type=recovery/.test(location.hash + location.search);
       sb = window.supabase.createClient(CFG.supabaseUrl, CFG.supabaseKey, {auth:{persistSession:true, storageKey:'crews.auth', autoRefreshToken:true, detectSessionInUrl:true}});
-      const {data} = await sb.auth.getSession(); session = data.session;
+      // listen before reading the session: the client fires PASSWORD_RECOVERY while it reads the link
       sb.auth.onAuthStateChange((ev, s) => {
         session = s;
-        if (ev === 'PASSWORD_RECOVERY'){ U.screen = 'newpw'; render(); }
+        if (ev === 'PASSWORD_RECOVERY'){ U.recovery = true; U.screen = 'newpw'; render(); }
       });
+      const {data} = await sb.auth.getSession(); session = data.session;
+      if (recovering && session){ U.recovery = true; U.screen = 'newpw'; }
       return session;
     },
     async signUp(name, email, pw){
@@ -564,6 +569,8 @@ function supabaseBackend(){
       return fail(await sb.rpc('create_crew', {p_name:d.name, p_rule:d.rule, p_len:d.len, p_mode:d.mode, p_proof:d.proof, p_tz:MY_TZ, p_color:COLORS[Math.floor(Math.random() * COLORS.length)], p_cover:d.color || null}));
     },
     async preview(code){ const r = await sb.rpc('crew_preview', {p_code:code}); return r.error ? null : r.data; },
+    // sign-ups can be closed until launch (crew_settings in the database); if the check fails, assume open
+    async signupsOpen(){ const r = await sb.rpc('crews_signups_open'); return r.error ? true : r.data !== false; },
     async join(code, taken){
       const free = COLORS.filter(x => !(taken || []).includes(x));
       return fail(await sb.rpc('join_crew', {p_code:code, p_color:(free.length ? free : COLORS)[Math.floor(Math.random() * (free.length || COLORS.length))]}));
@@ -787,6 +794,7 @@ function errText(e){
   if (/already registered/i.test(m)) return 'That email already has an account. Sign in instead.';
   if (/Password should be/i.test(m)) return 'Use at least 6 characters for your password.';
   if (/rate limit|too many/i.test(m)) return 'Too many tries. Wait a minute and try again.';
+  if (/sign-ups are closed|Database error saving new user/i.test(m)) return 'New accounts open on 29 December. Join the waitlist to save your spot.';
   return m || 'Something went wrong. Try again.';
 }
 async function act(fn, ok){
@@ -823,6 +831,7 @@ function vWelcome(){
   return `<div class="screen nonav" style="justify-content:center;gap:22px">
     <div class="row" style="gap:10px;color:var(--chain)">${ic('rings','width:40px;height:40px;stroke-width:2.6')}<span class="h" style="font-size:22px;font-weight:800;color:var(--ink)">crewsade</span></div>
     ${U.preview ? invitePreviewCard() : `<h1 class="title" style="font-size:42px">Better with your crew.</h1>`}
+    ${U.closed && a !== 'up' ? `<div class="card" style="gap:6px"><div class="h" style="font-size:17px;font-weight:700">Opening 29 December</div><div class="sub">New accounts open at launch. Already have one? Sign in below.</div><a class="btn sm" href="join/" style="text-decoration:none;margin-top:6px">Join the waitlist</a></div>` : ''}
     ${demoBar()}
     <form data-f="auth" class="card" style="gap:10px" novalidate>
       <div class="h" style="font-size:19px;font-weight:700">${title}</div>
@@ -834,7 +843,7 @@ function vWelcome(){
       ${U.authMsg ? `<div class="sub" role="status" style="font-weight:600">${esc(U.authMsg)}</div>` : ''}
       <button class="btn chainbtn" type="submit" ${U.busy?'disabled':''}>${DEMO ? 'Try the demo' : a === 'up' ? (U.preview ? 'Create account and join' : 'Create account') : a === 'in' ? (U.preview ? 'Sign in and join' : 'Sign in') : 'Send reset link'}</button>
       ${DEMO ? '' : `<div class="row" style="justify-content:space-between;flex-wrap:wrap">
-        ${a === 'up' ? `<button type="button" class="linkbtn" data-a="authmode" data-v="in">I have an account</button>` : `<button type="button" class="linkbtn" data-a="authmode" data-v="up">Create an account</button>`}
+        ${a === 'up' ? `<button type="button" class="linkbtn" data-a="authmode" data-v="in">I have an account</button>` : U.closed ? '' : `<button type="button" class="linkbtn" data-a="authmode" data-v="up">Create an account</button>`}
         ${a === 'in' ? `<button type="button" class="linkbtn" data-a="authmode" data-v="reset">Forgot password?</button>` : ''}
       </div>`}
     </form>
@@ -1547,7 +1556,7 @@ app.addEventListener('submit', async e => {
     const pw = (document.getElementById('np') || {}).value || '';
     if (pw.length < 6){ U.authErr = 'Use at least 6 characters.'; render(); return; }
     U.busy = true; render();
-    try { await api.updatePassword(pw); U.busy = false; U.authErr = ''; toast('Password saved'); enter(); }
+    try { await api.updatePassword(pw); U.busy = false; U.authErr = ''; U.recovery = false; toast('Password saved'); enter(); }
     catch(err){ U.busy = false; U.authErr = errText(err); render(); }
   }
   else if (f === 'name'){ const n = val('nm').slice(0, 24); if (!n) return; await act(() => api.setName(n)); if (S.me.name) enter(); }
@@ -1583,7 +1592,10 @@ applyTheme(ls.get('crews.theme') || 'system');
   try { session = await api.start(); }
   catch(e){ U.screen = 'welcome'; U.authErr = "Can't reach the server. Check your connection and reload."; render(); return; }
   if (U.invite && !DEMO) U.preview = await api.preview(U.invite);
-  if (U.screen === 'newpw') return;
-  if (session) enter(); else { U.auth = U.invite ? 'up' : 'up'; go('welcome'); }
+  if (U.recovery || U.screen === 'newpw'){ U.screen = 'newpw'; render(); return; }
+  // before launch, only testers opening the app with ?beta=1 see the sign-up form (their email must be on the allowlist)
+  if (q.get('beta') === '1') ls.set('crews.beta', 1);
+  if (!session) U.closed = !ls.get('crews.beta') && !(await api.signupsOpen());
+  if (session) enter(); else { U.auth = U.closed ? 'in' : 'up'; go('welcome'); }
 })();
 })();

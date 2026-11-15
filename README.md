@@ -101,6 +101,13 @@ To set it up:
 
 Tracking links: put `join/?s=tiktok` in the TikTok bio, `join/?s=instagram` in Instagram, and so on. For one video, use `join/?utm_source=tiktok&utm_campaign=day9`. The stats page has a link builder. A visitor is credited to the last tagged link they arrived on, even if they sign up days later on the same phone.
 
+### Sign-ups closed until launch
+
+`supabase/waitlist.sql` also closes new accounts. People who already have one can still sign in, use their crews and reset their password. New visitors see "Opening 29 December" and a link to the waitlist.
+
+- Open sign-ups at launch: `update public.crew_settings set value = 'true' where key = 'signups_open';`
+- Let a beta tester sign up early: `insert into public.crew_signup_allowlist (email) values ('friend@example.com') on conflict do nothing;` and send them the app link ending in `?beta=1`.
+
 ## Updating the database
 
 When the app gains features that need new database pieces, run `supabase/schema.sql` again in the SQL Editor. It's safe to rerun: it keeps your data and only adds what's missing. If you set up notifications, redeploy the `crews-push` function too.
