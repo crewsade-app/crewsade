@@ -215,6 +215,9 @@ input[type=time]{width:auto}
 html,body{overflow:hidden;overscroll-behavior:none;position:fixed;inset:0;width:100%}
 .screen{overscroll-behavior:contain}
 nav.tabs{touch-action:none;user-select:none;-webkit-user-select:none}
+/* only vertical scrolling inside a screen or sheet; nothing scrolls sideways */
+.screen,.sheet{overflow-x:hidden;touch-action:pan-y}
+#app,nav.tabs,.popwrap{overscroll-behavior:none}
 /* pop-ups are modal: a light scrim catches every tap and closes the pop-up */
 .popwrap{pointer-events:auto;background:rgba(10,10,14,.18);cursor:pointer}
 .pbox{pointer-events:none}

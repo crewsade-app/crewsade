@@ -780,6 +780,7 @@ function cleanMilestones(){
 }
 function errText(e){
   const m = (e && (e.message || e.error_description)) || '';
+  if ((e && e.code === 'PGRST202') || /Could not find the function/i.test(m)) return 'This needs a database update first: rerun supabase/schema.sql in Supabase.';
   if (/offline|fetch|network/i.test(m)) return "Can't reach the server. Check your connection.";
   if (/row-level security|42501/i.test(m) || (e && e.code === '42501')) return "That didn't save. Refresh and try again.";
   if (/Invalid login credentials/i.test(m)) return 'Wrong email or password.';
@@ -1513,6 +1514,17 @@ app.addEventListener('change', async e => {
     act(() => api.setName(n), 'Name saved');
   } else if (t.id === 'rt' && t.value){ act(() => api.setReminder(t.value), 'Reminder set for ' + t.value); }
 });
+// keep the page itself still: drags only scroll a screen, a sheet or a text box up and down,
+// and never move the tab bar or the page sideways (iOS ignores some of the CSS for this)
+let touch0 = null;
+document.addEventListener('touchstart', e => { const t = e.touches[0]; touch0 = t ? {x:t.clientX, y:t.clientY} : null; }, {passive:true});
+document.addEventListener('touchmove', e => {
+  if (e.touches.length > 1 || !touch0) return;
+  const t = e.touches[0], dx = Math.abs(t.clientX - touch0.x), dy = Math.abs(t.clientY - touch0.y);
+  const sc = e.target.closest && e.target.closest('.screen, .sheet, textarea');
+  if (!sc || (dx > dy && e.target.tagName !== 'INPUT')) e.preventDefault();
+}, {passive:false});
+
 app.addEventListener('submit', async e => {
   e.preventDefault(); const f = e.target.dataset.f, val = id => { const el = document.getElementById(id); return el ? el.value.trim() : ''; };
   if (f === 'auth'){
