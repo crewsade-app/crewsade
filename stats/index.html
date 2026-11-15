@@ -135,13 +135,14 @@ tr:last-child td{border-bottom:0}
       <div class="seg" id="range" role="group" aria-label="Days shown">
         <button type="button" data-d="14">14 days</button><button type="button" data-d="30" aria-pressed="true">30 days</button><button type="button" data-d="90">90 days</button>
       </div>
+      <label class="b" style="display:inline-flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" id="mine" style="margin:0">Include my own data</label>
       <button class="b" id="refresh" type="button">Refresh</button>
       <button class="b" id="csv" type="button">Download waitlist</button>
       <button class="b" id="out" type="button">Sign out</button>
       <div class="updated" id="updated"></div>
     </header>
 
-    <h2>Waitlist <small>target: 300 to 500 crews of 3+ by 29 Dec · your own sign-ups, visits and activity are left out</small></h2>
+    <h2>Waitlist <small>target: 300 to 500 crews of 3+ by 29 Dec · your own sign-ups and activity are left out unless you tick Include my own data</small></h2>
     <div class="tiles" id="wl-tiles"></div>
     <div class="grid2">
       <div class="card">
@@ -239,7 +240,12 @@ tr:last-child td{border-bottom:0}
   let last = null;
   async function load(){
     $('refresh').disabled = true;
-    const { data, error } = await sb.rpc('crews_admin_stats', {p_days: days, p_tz: TZ});
+    let { data, error } = await sb.rpc('crews_admin_stats', {p_days: days, p_tz: TZ, p_mine: $('mine').checked});
+    // before the latest waitlist.sql is run, the database only knows the older version without p_mine
+    if (error && /function|schema cache/i.test(error.message)) {
+      ({ data, error } = await sb.rpc('crews_admin_stats', {p_days: days, p_tz: TZ}));
+      if (!error) $('updated').dataset.old = '1';
+    }
     $('refresh').disabled = false;
     if (error) {
       if (/not allowed/i.test(error.message)) {
@@ -253,6 +259,8 @@ tr:last-child td{border-bottom:0}
     last = data; show('dash'); render(data);
   }
   $('refresh').onclick = load;
+  try { $('mine').checked = localStorage.getItem('crews_stats_mine') === '1'; } catch (e) {}
+  $('mine').onchange = () => { try { localStorage.setItem('crews_stats_mine', $('mine').checked ? '1' : '0'); } catch (e) {} load(); };
   $('range').querySelectorAll('button').forEach(b => {
     b.setAttribute('aria-pressed', +b.dataset.d === days ? 'true' : 'false');
     b.onclick = () => {
@@ -268,7 +276,7 @@ tr:last-child td{border-bottom:0}
   }
   function render(d){
     const w = d.waitlist, a = d.app;
-    $('updated').textContent = `Updated ${new Date(d.generated_at).toLocaleString()} · days counted in ${d.tz}`;
+    $('updated').textContent = `Updated ${new Date(d.generated_at).toLocaleString()} · days counted in ${d.tz}` + ($('updated').dataset.old ? ' · rerun waitlist.sql in Supabase to use "Include my own data"' : '');
     const visits7 = w.visits_7d, crews7 = d.waitlist_daily.slice(-7).reduce((s, x) => s + x.crews, 0);
     $('wl-tiles').innerHTML = [
       tile('Crews of 3+', fmt(w.full_crews), `<b>${pct(w.full_crews, 300)}</b> of the 300 goal`, w.full_crews / 300 * 100),

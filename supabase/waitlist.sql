@@ -167,7 +167,9 @@ end $$;
 
 -- ---------- admin functions (stats page) ----------
 -- everything the stats page shows, counted by day in p_tz (your time zone)
-create or replace function public.crews_admin_stats(p_days int default 30, p_tz text default 'UTC') returns json
+-- p_mine = true counts your own test sign-ups and activity too (the stats page's "Include my own data" switch)
+drop function if exists public.crews_admin_stats(int, text);
+create or replace function public.crews_admin_stats(p_days int default 30, p_tz text default 'UTC', p_mine boolean default false) returns json
 language plpgsql stable security definer set search_path = public as $$
 declare
   v_tz text := coalesce(nullif(p_tz, ''), 'UTC');
@@ -181,9 +183,9 @@ begin
   with
   days as (select generate_series(v_from, v_today, interval '1 day')::date as day),
   -- your own data is left out: admins' waitlist sign-ups, accounts, check-ins and the crews they started
-  adm as (select user_id from crew_admins),
+  adm as (select user_id from crew_admins where not coalesce(p_mine, false)),
   wl as (select w.*, (w.created_at at time zone v_tz)::date as day, public.crews_source(w.utm_source, w.referrer) as src
-         from crew_waitlist w where lower(w.email) not in (select public.crews_admin_emails())),
+         from crew_waitlist w where coalesce(p_mine, false) or lower(w.email) not in (select public.crews_admin_emails())),
   wcrew as (select c.id, c.created_at, (c.created_at at time zone v_tz)::date as day, count(w.id) as size,
               max(case when w.leader then w.src end) as src
             from crew_waitlist_crews c join wl w on w.crew_id = c.id group by c.id),
@@ -302,11 +304,11 @@ revoke all on function public.waitlist_total() from public, anon, authenticated;
 revoke all on function public.site_visit(text, jsonb, boolean) from public, anon, authenticated;
 revoke all on function public.crews_is_admin() from public, anon, authenticated;
 revoke all on function public.crews_admin_emails() from public, anon, authenticated;
-revoke all on function public.crews_admin_stats(int, text) from public, anon, authenticated;
+revoke all on function public.crews_admin_stats(int, text, boolean) from public, anon, authenticated;
 revoke all on function public.crews_admin_waitlist() from public, anon, authenticated;
 grant execute on function public.waitlist_join(text, text, text, text, text, text, jsonb), public.waitlist_crew(text),
   public.waitlist_total(), public.site_visit(text, jsonb, boolean) to anon, authenticated;
-grant execute on function public.crews_is_admin(), public.crews_admin_stats(int, text), public.crews_admin_waitlist() to authenticated;
+grant execute on function public.crews_is_admin(), public.crews_admin_stats(int, text, boolean), public.crews_admin_waitlist() to authenticated;
 
 -- ---------- closing sign-ups until launch ----------
 -- While signups_open is false, nobody can create an account (the app shows "Opening 29 December"
