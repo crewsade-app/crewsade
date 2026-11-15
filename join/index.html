@@ -45,8 +45,6 @@ button,input,select{font:inherit;color:inherit}
 header.top{display:flex;align-items:center;justify-content:space-between;padding:18px 0}
 .brand{display:flex;align-items:center;gap:10px;font-family:var(--display);font-weight:800;font-size:19px;letter-spacing:-.02em;text-decoration:none}
 .brand img{width:32px;height:32px;border-radius:9px}
-.top a.app{font-size:14px;font-weight:600;color:var(--muted);text-decoration:none}
-.top a.app:hover{color:var(--ink)}
 
 .hero{display:grid;grid-template-columns:1.05fr .95fr;gap:48px;align-items:center;padding:32px 0 56px}
 h1{font-family:var(--display);font-weight:800;letter-spacing:-.035em;line-height:.98;font-size:clamp(42px,6.4vw,72px);margin:0 0 18px}
@@ -101,10 +99,6 @@ section.how h3{font-family:var(--display);font-weight:800;font-size:32px;letter-
 .step p{margin:0;color:var(--muted);font-size:15px}
 .ideas{display:flex;flex-wrap:wrap;gap:8px;margin:28px 0 0}
 .ideas span{background:var(--card);border:1px solid var(--line);border-radius:99px;padding:8px 14px;font-size:14px;font-weight:600;color:var(--soft)}
-.now{display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap;background:var(--hero);color:var(--hero-fg);border-radius:28px;padding:26px 28px;margin:40px 0 0}
-.now p{margin:4px 0 0;color:var(--hero-muted)}
-.now b{font-family:var(--display);font-size:22px;letter-spacing:-.02em}
-.now a{background:var(--hero-fg);color:var(--hero);text-decoration:none;font-weight:700;border-radius:14px;padding:13px 18px}
 footer{padding:40px 0 48px;color:var(--muted);font-size:14px;display:flex;gap:18px;flex-wrap:wrap}
 footer a{color:var(--muted)}
 
@@ -131,7 +125,6 @@ footer a{color:var(--muted)}
   .wrap{padding:0 16px}
   .card{padding:20px;border-radius:24px}
   .two{grid-template-columns:1fr}
-  .top a.app{display:none}
 }
 </style>
 </head>
@@ -139,7 +132,6 @@ footer a{color:var(--muted)}
 <div class="wrap">
   <header class="top">
     <a class="brand" href="./"><img src="../icon-180.png" alt="">Crewsade</a>
-    <a class="app" href="../">Open the web app</a>
   </header>
 
   <main>
@@ -198,13 +190,11 @@ footer a{color:var(--muted)}
             <button class="btn" id="native" type="button">Send to friends</button>
             <a class="btn ghost" id="sms" href="#" style="text-decoration:none">Text it</a>
           </div>
-          <p class="fine">Can't wait? <a href="../">Start a crew in the web app</a> today.</p>
         </div>
 
         <div id="already" class="hide">
           <h2>You're already on the list</h2>
-          <p class="sub">That email has a spot. If you lost your crew's link, ask a friend in your crew to send it again, or start a crew now in the web app.</p>
-          <a class="btn dark" href="../" style="text-decoration:none">Open the web app</a>
+          <p class="sub">That email has a spot. If you lost your crew's link, ask a friend in your crew to send it again.</p>
           <p class="fine"><a href="#" id="again">Use a different email</a></p>
         </div>
       </div>
@@ -220,10 +210,6 @@ footer a{color:var(--muted)}
       <div class="ideas" aria-label="Challenge ideas">
         <span>Phone-free mornings</span><span>Gym 4x a week</span><span>Read 10 pages</span><span>10k steps</span><span>Study 2 hours</span><span>Asleep by midnight</span><span>Dry January</span><span>No takeout</span>
       </div>
-      <div class="now">
-        <div><b>Want to start today?</b><p>The web app works now on any phone. Your crew moves over to the iPhone app at launch.</p></div>
-        <a href="../">Start a crew</a>
-      </div>
     </section>
   </main>
 
@@ -231,7 +217,6 @@ footer a{color:var(--muted)}
     <span>Crewsade</span>
     <a href="../terms.html">Terms</a>
     <a href="../privacy.html">Privacy</a>
-    <a href="../">Web app</a>
   </footer>
 </div>
 
