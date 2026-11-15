@@ -1,6 +1,6 @@
 // Crewsade service worker: offline app shell and push notifications.
 // After changing any app file, bump CACHE_VERSION so installed copies update.
-const CACHE_VERSION = 'crews-v31';
+const CACHE_VERSION = 'crews-v32';
 const SHELL = ['./', 'index.html', 'app.css', 'app.js', 'config.js', 'manifest.json', 'icon.svg', 'icon-192.png', 'icon-512.png', 'icon-180.png', 'vendor/motion.js'];
 
 self.addEventListener('install', e => {

@@ -154,7 +154,7 @@ footer a{color:var(--muted)}
           </div>
           <div id="fresh">
             <h2>Save your crew's spot</h2>
-            <p class="sub">The iPhone app comes out 29 December, in time for a January challenge. Sign up, then send your friends the link.</p>
+            <p class="sub">Crewsade is expected on the App Store on 29 December. Before then, a select handful of crews from the waitlist will be picked to beta test it with early access. Sign up, then send your friends the link.</p>
           </div>
 
           <div class="two">
@@ -176,7 +176,7 @@ footer a{color:var(--muted)}
           </div>
           <p class="err" id="err" role="alert"></p>
           <button class="btn" id="submit" type="submit">Save our spot</button>
-          <p class="fine">Crews of 3 or more get into the beta first. We'll only email you about Crewsade. By joining you agree to the <a href="../terms.html">Terms</a> and <a href="../privacy.html">Privacy policy</a>.</p>
+          <p class="fine">Full crews of 3 or more have the best chance at early access. We'll only email you about Crewsade. By joining you agree to the <a href="../terms.html">Terms</a> and <a href="../privacy.html">Privacy policy</a>.</p>
         </form>
 
         <!-- after sign-up -->
@@ -184,7 +184,7 @@ footer a{color:var(--muted)}
           <div class="invite-head"><div class="faces" id="done-faces"></div></div>
           <span class="crewtag" id="done-tag"></span>
           <h2 id="done-title">You're on the list</h2>
-          <p class="sub" id="done-sub">Now get your crew. Send this link to 2 to 4 friends. Crews of 3 or more get into the beta first.</p>
+          <p class="sub" id="done-sub">Now get your crew. Send this link to 2 to 4 friends. Full crews have the best chance of being picked for early access.</p>
           <div class="share"><input class="in" id="link" readonly aria-label="Your crew's link"><button class="btn dark" id="copy" type="button">Copy</button></div>
           <div class="grid3">
             <button class="btn" id="native" type="button">Send to friends</button>
@@ -379,8 +379,8 @@ footer a{color:var(--muted)}
       if (c.name) $('inv-tag').classList.remove('hide'); else $('inv-tag').classList.add('hide');
       $('inv-title').textContent = first ? `${first} saved you a spot` : 'Your crew saved you a spot';
       $('inv-sub').textContent = c.challenge
-        ? `Join ${c.count === 1 ? first || 'them' : 'the ' + c.count + ' of them'} on the list for ${c.challenge.toLowerCase()}. The app comes out 29 December.`
-        : 'Add your email to join them on the list. The app comes out 29 December.';
+        ? `Join ${c.count === 1 ? first || 'them' : 'the ' + c.count + ' of them'} on the list for ${c.challenge.toLowerCase()}. The app is expected 29 December, with early access for a few crews before then.`
+        : 'Add your email to join them on the list. The app is expected 29 December, with early access for a few crews before then.';
       $('submit').textContent = 'Join the crew';
     }).catch(() => {});
   }
@@ -427,8 +427,8 @@ footer a{color:var(--muted)}
     const need = Math.max(0, 3 - count);
     $('done-title').textContent = returning ? 'Your crew\'s spot is saved' : (count > 1 ? 'You\'re in the crew' : 'You\'re on the list');
     $('done-sub').textContent = need
-      ? `Now get your crew. Send this link to ${need === 1 ? 'one more friend' : '2 to 4 friends'}. Crews of 3 or more get into the beta first.`
-      : `Your crew has ${count} people, so you're in line for the beta. Send the link to anyone else who should join.`;
+      ? `Now get your crew. Send this link to ${need === 1 ? 'one more friend' : '2 to 4 friends'}. Full crews have the best chance of being picked for early access.`
+      : `Your crew has ${count} people, so you're in the running for early access. Send the link to anyone else who should join.`;
     const msg = `I saved us a spot on Crewsade${m.challenge ? ' for ' + m.challenge.toLowerCase() : ''}. Join my crew: ${link}`;
     $('sms').href = 'sms:?&body=' + encodeURIComponent(msg);
     $('native').onclick = async () => {
