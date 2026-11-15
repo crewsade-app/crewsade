@@ -32,7 +32,7 @@ About 20 minutes, all free.
 
 ### 1. Create a Supabase project
 
-1. Go to [supabase.com](https://supabase.com), sign in, and click **New project**. Call it `cadence-crews`. Pick any region near you and save the database password somewhere.
+1. Go to [supabase.com](https://supabase.com), sign in, and click **New project**. Call it `crewsade`. Pick any region near you and save the database password somewhere.
    - The free plan allows two projects. If you already use both, you can run this in the original Cadence project instead. Every table here starts with `crew_` (or is called `crews`), so nothing clashes. But the login is then shared between the two apps.
 2. Open **SQL Editor → New query**, paste all of `supabase/schema.sql`, and click **Run**.
 
@@ -46,7 +46,7 @@ In **Authentication → Sign In / Providers → Email**:
 
 In **Authentication → URL Configuration**:
 
-- Set **Site URL** to the address from step 4, e.g. `https://tayneoh.github.io/cadence-crews/`.
+- Set **Site URL** to the address from step 4, e.g. `https://crewsade-app.github.io/crewsade/`.
 - Add the same address under **Redirect URLs**.
 
 ### 3. Connect the app
@@ -67,9 +67,9 @@ These are safe to put in public code. The database rules in `schema.sql` decide 
 
 1. In this repo on GitHub, go to **Settings → Pages**.
 2. Under "Build and deployment", choose **Deploy from a branch**, then the `main` branch and the `/ (root)` folder, and click **Save**.
-3. After a minute your app is live at `https://tayneoh.github.io/cadence-crews/`.
+3. After a minute your app is live at `https://crewsade-app.github.io/crewsade/`.
 
-Invite links look like `https://tayneoh.github.io/cadence-crews/?j=abc12345`. Someone who opens one sees the crew, creates an account, and joins in one step.
+Invite links look like `https://crewsade-app.github.io/crewsade/?j=abc12345`. Someone who opens one sees the crew, creates an account, and joins in one step.
 
 ### 5. Notifications (optional, recommended)
 
@@ -81,14 +81,14 @@ Notifications cover: someone checked in, everyone's in (the chain grew), chain m
 4. **Add its secrets.** Under **Edge Functions → Secrets**, add:
    - `VAPID_PUBLIC_KEY` and `VAPID_PRIVATE_KEY`: the two keys from step 1.
    - `PUSH_SECRET`: any long random text.
-   - `APP_URL`: your app's address, e.g. `https://tayneoh.github.io/cadence-crews/`.
+   - `APP_URL`: your app's address, e.g. `https://crewsade-app.github.io/crewsade/`.
 5. **Connect the database.** Open `supabase/notifications.sql` and replace `PUSH_FUNCTION_URL` with the function's address (`https://<project>.supabase.co/functions/v1/crews-push`) and `PUSH_SECRET_VALUE` with your secret. Then run it in the SQL Editor.
 6. **Turn it on in the app.** Put the **public** key into `vapidPublicKey` in `config.js`.
 
 ## Website, waitlist and stats
 
-- **Landing page:** `join/` (live at `https://tayneoh.github.io/cadence-crews/join/`). Someone signs up, gets a crew link, and sends it to 2 to 4 friends, who join the same waitlist crew. It shows a "crews waiting" counter once there are 10.
-- **Stats page:** `stats/` (live at `https://tayneoh.github.io/cadence-crews/stats/`). Private: only admins can load the numbers. Shows waitlist crews and sign-ups by day and by source, visits, campaigns, crew sizes, and the app's users, crews, check-ins, finished crews and retention. "Download waitlist" saves everyone as a CSV for emailing.
+- **Landing page:** `join/` (live at `https://crewsade-app.github.io/crewsade/join/`). Someone signs up, gets a crew link, and sends it to 2 to 4 friends, who join the same waitlist crew. It shows a "crews waiting" counter once there are 10.
+- **Stats page:** `stats/` (live at `https://crewsade-app.github.io/crewsade/stats/`). Private: only admins can load the numbers. Shows waitlist crews and sign-ups by day and by source, visits, campaigns, crew sizes, and the app's users, crews, check-ins, finished crews and retention. "Download waitlist" saves everyone as a CSV for emailing.
 
 To set it up:
 
