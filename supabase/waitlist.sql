@@ -66,6 +66,12 @@ revoke all on public.crew_waitlist_crews, public.crew_waitlist, public.crew_site
 create or replace function public.crews_source(p_utm text, p_ref text) returns text
 language sql immutable set search_path = public as $$
   select case
+    -- Instagram adds utm_source=ig to bio links by itself, so short and long names are merged
+    when lower(trim(p_utm)) in ('ig', 'insta', 'instagram', 'instagram.com', 'l.instagram.com') then 'instagram'
+    when lower(trim(p_utm)) in ('tt', 'tiktok', 'tiktok.com') then 'tiktok'
+    when lower(trim(p_utm)) in ('fb', 'facebook', 'facebook.com', 'm.facebook.com', 'l.facebook.com') then 'facebook'
+    when lower(trim(p_utm)) in ('yt', 'youtube', 'youtube.com') then 'youtube'
+    when lower(trim(p_utm)) in ('twitter', 'x', 'x.com', 't.co') then 'x'
     when nullif(trim(p_utm), '') is not null then lower(trim(p_utm))
     when p_ref ~* '(tiktok\.com)' then 'tiktok'
     when p_ref ~* '(instagram\.com)' then 'instagram'
