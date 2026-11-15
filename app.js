@@ -499,6 +499,9 @@ function supabaseBackend(){
       if (!window.supabase || !window.supabase.createClient) throw new Error('offline');
       // a password reset link lands here with type=recovery in the address; note it before the client reads and clears it
       const recovering = /type=recovery/.test(location.hash + location.search);
+      // a link that expired or was already used (some work and school email systems open links to scan them first)
+      const linkErr = /error_code=otp_expired|error=access_denied/.test(location.hash + location.search);
+      if (linkErr){ U.linkErr = 'That link has expired or was already used. Send yourself a new reset link below.'; history.replaceState(null, '', location.pathname + location.search); }
       sb = window.supabase.createClient(CFG.supabaseUrl, CFG.supabaseKey, {auth:{persistSession:true, storageKey:'crews.auth', autoRefreshToken:true, detectSessionInUrl:true}});
       // listen before reading the session: the client fires PASSWORD_RECOVERY while it reads the link
       sb.auth.onAuthStateChange((ev, s) => {
@@ -831,7 +834,7 @@ function vWelcome(){
   return `<div class="screen nonav" style="justify-content:center;gap:22px">
     <div class="row" style="gap:10px;color:var(--chain)">${ic('rings','width:40px;height:40px;stroke-width:2.6')}<span class="h" style="font-size:22px;font-weight:800;color:var(--ink)">crewsade</span></div>
     ${U.preview ? invitePreviewCard() : `<h1 class="title" style="font-size:42px">Better with your crew.</h1>`}
-    ${U.closed && a !== 'up' ? `<div class="card" style="gap:6px"><div class="h" style="font-size:17px;font-weight:700">Opening 29 December</div><div class="sub">New accounts open at launch. Already have one? Sign in below.</div><a class="btn sm" href="join/" style="text-decoration:none;margin-top:6px">Join the waitlist</a></div>` : ''}
+    ${U.closed && a === 'in' ? `<div class="card" style="gap:6px"><div class="h" style="font-size:17px;font-weight:700">Opening 29 December</div><div class="sub">New accounts open at launch. Already have one? Sign in below.</div><a class="btn sm" href="join/" style="text-decoration:none;margin-top:6px">Join the waitlist</a></div>` : ''}
     ${demoBar()}
     <form data-f="auth" class="card" style="gap:10px" novalidate>
       <div class="h" style="font-size:19px;font-weight:700">${title}</div>
@@ -858,6 +861,7 @@ function vNewPw(){
       <label class="lab" for="np">New password</label><input id="np" type="password" minlength="6" autocomplete="new-password" placeholder="At least 6 characters">
       ${U.authErr ? `<div class="err" role="alert">${esc(U.authErr)}</div>` : ''}
       <button class="btn chainbtn" type="submit" ${U.busy?'disabled':''}>Save password</button>
+      ${S.me ? `<button type="button" class="linkbtn" data-a="chpwcancel" style="align-self:center">Cancel</button>` : ''}
     </form>
   </div>`;
 }
@@ -1150,6 +1154,7 @@ function vYou(){
     ${DEMO ? `<div class="lab">Demo controls</div>
       <button class="opt" data-a="skipday">${ic('redo')}Skip to next day</button>
       <button class="opt danger" data-a="erase">${ic('trash')}${U.confirm==='erase'?'Tap again to erase everything':'Erase demo data'}</button>` : `
+      <button class="opt" data-a="chpw">${ic('lock')}Change password</button>
       <button class="opt" data-a="signout">${ic('out')}Sign out</button>
       <button class="opt danger" data-a="delacct">${ic('trash')}${U.confirm==='delacct'?'Tap again: delete account and posts':'Delete account'}</button>`}
     <div class="sub" style="text-align:center"><a href="terms.html">Terms of Use</a> · <a href="privacy.html">Privacy policy</a></div>
@@ -1490,6 +1495,8 @@ app.addEventListener('click', async e => {
     if (installEvt){ installEvt.prompt(); try { await installEvt.userChoice; } catch(err){} installEvt = null; render(); }
     else { U.sheet = {type:'install'}; render(); }
   }
+  else if (a === 'chpwcancel'){ U.recovery = false; U.authErr = ''; go('you'); }
+  else if (a === 'chpw'){ U.authErr = ''; U.recovery = true; go('newpw'); }
   else if (a === 'signout'){ await api.signOut(); S.crews = []; S.me = null; U.auth = 'in'; U.authErr = ''; U.authMsg = ''; go('welcome'); }
   else if (a === 'delacct'){
     if (U.confirm !== 'delacct'){ U.confirm = 'delacct'; render(); return; }
@@ -1596,6 +1603,10 @@ applyTheme(ls.get('crews.theme') || 'system');
   // before launch, only testers opening the app with ?beta=1 see the sign-up form (their email must be on the allowlist)
   if (q.get('beta') === '1') ls.set('crews.beta', 1);
   if (!session) U.closed = !ls.get('crews.beta') && !(await api.signupsOpen());
+  if (U.linkErr){
+    if (session){ enter(); toast('That reset link had expired. You can change your password in the You tab.'); return; }
+    U.auth = 'reset'; U.authErr = U.linkErr; go('welcome'); return;
+  }
   if (session) enter(); else { U.auth = U.closed ? 'in' : 'up'; go('welcome'); }
 })();
 })();
