@@ -450,6 +450,7 @@ function demoBackend(){
     },
     async preview(){ return null; },
     async signupsOpen(){ return true; },
+    async hasAccess(){ return true; },
     async join(){ throw new Error('Invite links work once the app is connected to Supabase.'); },
     async checkIn(c, mid){ const x = find(c.id), d = today(c); x.log[d] = x.log[d] || {}; x.log[d][mid || 'me'] = Date.now(); saveD(); },
     async uncheck(c, mid){ const x = find(c.id), d = today(c); if (x.log[d]) delete x.log[d][mid]; saveD(); },
@@ -574,6 +575,8 @@ function supabaseBackend(){
     async preview(code){ const r = await sb.rpc('crew_preview', {p_code:code}); return r.error ? null : r.data; },
     // sign-ups can be closed until launch (crew_settings in the database); if the check fails, assume open
     async signupsOpen(){ const r = await sb.rpc('crews_signups_open'); return r.error ? true : r.data !== false; },
+    // invite-only: false only when the database says this account isn't on the access list yet
+    async hasAccess(){ const r = await sb.rpc('crews_has_access'); return r.error ? true : r.data !== false; },
     async join(code, taken){
       const free = COLORS.filter(x => !(taken || []).includes(x));
       return fail(await sb.rpc('join_crew', {p_code:code, p_color:(free.length ? free : COLORS)[Math.floor(Math.random() * (free.length || COLORS.length))]}));
@@ -797,6 +800,7 @@ function errText(e){
   if (/already registered/i.test(m)) return 'That email already has an account. Sign in instead.';
   if (/Password should be/i.test(m)) return 'Use at least 6 characters for your password.';
   if (/rate limit|too many/i.test(m)) return 'Too many tries. Wait a minute and try again.';
+  if (/invite-only/i.test(m)) return "Crewsade is invite-only right now. You'll be able to sign in once you've been let in.";
   if (/sign-ups are closed|Database error saving new user/i.test(m)) return 'New accounts open at launch, expected 29 December. Join the waitlist for a chance at early access.';
   return m || 'Something went wrong. Try again.';
 }
@@ -1355,6 +1359,10 @@ function applyTheme(t){
 /* ---------- after sign-in ---------- */
 async function enter(){
   U.screen = 'loading'; render();
+  if (!(await api.hasAccess())){
+    try { await api.signOut(); } catch(e) {}
+    U.auth = 'in'; U.screen = 'welcome'; U.authErr = "Crewsade is invite-only right now. You'll be able to sign in once you've been let in."; render(); return;
+  }
   try { await refresh(); }
   catch(e){ U.screen = 'welcome'; U.authErr = errText(e); render(); return; }
   api.live(softRefresh);

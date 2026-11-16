@@ -357,3 +357,61 @@ create trigger crews_block_closed_signups before insert on auth.users
 
 revoke all on function public.crews_signups_open() from public, anon, authenticated;
 grant execute on function public.crews_signups_open() to anon, authenticated;
+
+-- ---------- invite-only: nobody signs in until you let them ----------
+-- While invite_only is true, only admins and emails in crew_signup_allowlist can sign in or sign up.
+-- Everyone else gets "Crewsade is invite-only right now" and is signed out, even with an existing account.
+-- This needs one setting in Supabase (once): Authentication -> Hooks -> Customize Access Token (JWT) Claims hook ->
+-- enable it, pick Postgres, schema public, function crews_access_token_hook, and save.
+--
+-- Let someone in:     insert into public.crew_signup_allowlist (email) values ('friend@example.com') on conflict do nothing;
+-- Take them out:      delete from public.crew_signup_allowlist where email = 'friend@example.com';
+-- Open to everyone:   update public.crew_settings set value = 'false' where key = 'invite_only';
+insert into public.crew_settings (key, value) values ('invite_only', 'true') on conflict (key) do nothing;
+
+-- can this account use the app right now?
+create or replace function public.crews_user_allowed(p_user uuid) returns boolean
+language sql stable security definer set search_path = public, auth as $$
+  select not coalesce((select (value #>> '{}')::boolean from public.crew_settings where key = 'invite_only'), false)
+    or exists (select 1 from public.crew_admins a where a.user_id = p_user)
+    or exists (select 1 from auth.users u join public.crew_signup_allowlist l on l.email = lower(u.email) where u.id = p_user);
+$$;
+
+-- the app asks this after signing in, to show a friendly message
+create or replace function public.crews_has_access() returns boolean
+language sql stable security definer set search_path = public as $$
+  select auth.uid() is not null and public.crews_user_allowed(auth.uid());
+$$;
+
+-- Supabase runs this every time it hands out a sign-in token (signing in, and the hourly refresh),
+-- so someone taken off the list is signed out within the hour
+create or replace function public.crews_access_token_hook(event jsonb) returns jsonb
+language plpgsql stable security definer set search_path = public as $$
+begin
+  if public.crews_user_allowed((event->>'user_id')::uuid) then return event; end if;
+  return jsonb_build_object('error', jsonb_build_object('http_code', 403,
+    'message', 'Crewsade is invite-only right now. Join the waitlist and we''ll let you know when you''re in.'));
+end $$;
+
+-- invite-only also covers new accounts: allowlisted emails can sign up even before sign-ups open
+create or replace function public.crews_block_closed_signups() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  if (not public.crews_signups_open()
+      or coalesce((select (value #>> '{}')::boolean from crew_settings where key = 'invite_only'), false))
+     and not exists (select 1 from crew_signup_allowlist where email = lower(new.email)) then
+    raise exception 'Sign-ups are closed until launch.';
+  end if;
+  return new;
+end $$;
+
+revoke all on function public.crews_user_allowed(uuid) from public, anon, authenticated;
+revoke all on function public.crews_has_access() from public, anon, authenticated;
+revoke all on function public.crews_access_token_hook(jsonb) from public, anon, authenticated;
+grant execute on function public.crews_has_access() to authenticated;
+do $$ begin
+  if exists (select 1 from pg_roles where rolname = 'supabase_auth_admin') then
+    execute 'grant usage on schema public to supabase_auth_admin';
+    execute 'grant execute on function public.crews_access_token_hook(jsonb) to supabase_auth_admin';
+  end if;
+end $$;
