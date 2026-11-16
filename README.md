@@ -113,6 +113,14 @@ Tracking links: put `join/?s=tiktok` in the TikTok bio, `join/?s=instagram` in I
 - Open sign-ups at launch: `update public.crew_settings set value = 'true' where key = 'signups_open';`
 - Let a beta tester sign up early: `insert into public.crew_signup_allowlist (email) values ('friend@example.com') on conflict do nothing;` and send them the app link ending in `?beta=1`.
 
+### Invite-only sign-in
+
+`supabase/waitlist.sql` also makes the app invite-only: only admins and emails on `crew_signup_allowlist` can sign in or create an account. Everyone else is told it's invite-only and signed out. To enforce it on Supabase's side, turn on the hook once: **Authentication → Hooks → Customize Access Token (JWT) Claims** → Postgres → schema `public`, function `crews_access_token_hook` → Save.
+
+- Let someone in: `insert into public.crew_signup_allowlist (email) values ('friend@example.com') on conflict do nothing;`
+- Take them out: `delete from public.crew_signup_allowlist where email = 'friend@example.com';` (they're signed out within an hour)
+- Open to everyone at launch: `update public.crew_settings set value = 'false' where key = 'invite_only';` and `update public.crew_settings set value = 'true' where key = 'signups_open';`
+
 ## Updating the database
 
 When the app gains features that need new database pieces, run `supabase/schema.sql` again in the SQL Editor. It's safe to rerun: it keeps your data and only adds what's missing. If you set up notifications, redeploy the `crews-push` function too.
