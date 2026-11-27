@@ -801,7 +801,7 @@ function errText(e){
   if (/Password should be/i.test(m)) return 'Use at least 6 characters for your password.';
   if (/rate limit|too many/i.test(m)) return 'Too many tries. Wait a minute and try again.';
   if (/invite-only/i.test(m)) return "Crewsade is invite-only right now. You'll be able to sign in once you've been let in.";
-  if (/sign-ups are closed|Database error saving new user/i.test(m)) return 'New accounts open at launch, expected 29 December. Join the waitlist for a chance at early access.';
+  if (/sign-ups are closed|Database error saving new user/i.test(m)) return 'New accounts aren\'t open yet. Join the waitlist and we\'ll email you when you can get in.';
   return m || 'Something went wrong. Try again.';
 }
 async function act(fn, ok){
@@ -838,7 +838,7 @@ function vWelcome(){
   return `<div class="screen nonav" style="justify-content:center;gap:22px">
     <div class="row" style="gap:10px;color:var(--chain)">${ic('rings','width:40px;height:40px;stroke-width:2.6')}<span class="h" style="font-size:22px;font-weight:800;color:var(--ink)">crewsade</span></div>
     ${U.preview ? invitePreviewCard() : `<h1 class="title" style="font-size:42px">Better with your crew.</h1>`}
-    ${U.closed && a === 'in' ? `<div class="card" style="gap:6px"><div class="h" style="font-size:17px;font-weight:700">Expected 29 December</div><div class="sub">New accounts open at launch, and a few people from the waitlist get early access before then. Already have one? Sign in below.</div><a class="btn sm" href="join/" style="text-decoration:none;margin-top:6px">Join the waitlist</a></div>` : ''}
+    ${U.closed && a === 'in' ? `<div class="card" style="gap:6px"><div class="h" style="font-size:17px;font-weight:700">Coming soon</div><div class="sub">New accounts aren't open yet. Join the waitlist and we'll email you when you can get in. Already have one? Sign in below.</div><a class="btn sm" href="join/" style="text-decoration:none;margin-top:6px">Join the waitlist</a></div>` : ''}
     ${demoBar()}
     <form data-f="auth" class="card" style="gap:10px" novalidate>
       <div class="h" style="font-size:19px;font-weight:700">${title}</div>
